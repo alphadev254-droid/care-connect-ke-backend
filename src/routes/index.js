@@ -1,0 +1,48 @@
+const express = require('express');
+const authRoutes = require('./auth.routes');
+const userRoutes = require('./user.routes');
+const caregiverRoutes = require('./caregiver.routes');
+const appointmentRoutes = require('./appointment.routes');
+const reportRoutes = require('./report.routes');
+const teleconferenceRoutes = require('./teleconference.routes');
+const specialtyRoutes = require('./specialty.routes');
+const adminRoutes = require('./admin.routes');
+const paymentRoutes = require('./payment.routes');
+const patientRoutes = require('./patient.routes');
+const earningsRoutes = require('./earnings.routes');
+const publicRoutes = require('./public.routes');
+const termsRoutes = require('./terms.routes');
+const timeSlotRoutes = require('./timeSlot.routes');
+const availabilityRoutes = require('./availability.routes');
+const locationRoutes = require('./location.routes');
+const careReportRoutes = require('./careReport.routes');
+const meetingRoutes = require('./meeting.routes');
+const configRoutes = require('./config.routes');
+const notificationRoutes = require('./notification.routes');
+const withdrawalRoutes = require('./withdrawal.routes');
+
+const router = express.Router();
+
+router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
+router.use('/caregivers', caregiverRoutes);
+router.use('/appointments', appointmentRoutes);
+router.use('/reports', reportRoutes);
+router.use('/teleconference', teleconferenceRoutes);
+router.use('/specialties', specialtyRoutes);
+router.use('/admin', adminRoutes);
+router.use('/payments', paymentRoutes);
+router.use('/patients', patientRoutes);
+router.use('/earnings', earningsRoutes);
+router.use('/public', publicRoutes);
+router.use('/', termsRoutes);
+router.use('/timeslots', timeSlotRoutes);
+router.use('/availability', availabilityRoutes);
+router.use('/locations', locationRoutes);
+router.use('/care-reports', careReportRoutes);
+router.use('/meeting', meetingRoutes);
+router.use('/config', configRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/withdrawals', withdrawalRoutes);
+
+module.exports = router;

@@ -1,0 +1,53 @@
+{
+  "name": "home-care-backend",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:migrate": "node src/scripts/migrate.js",
+    "db:seed": "node src/scripts/seed.js",
+    "db:init": "node src/scripts/initDb.js",
+    "db:migrate-booking": "node src/scripts/runMigration.js",
+    "db:migrate-safe": "node -e \"require('./src/scripts/safeMigration')().then(() => process.exit(0)).catch(e => {console.error(e); process.exit(1)})\"",
+    "populate-locations": "node src/scripts/populateLocations.js",
+    "add-location-fields": "node src/scripts/addLocationFields.js",
+    "add-cancellation-fields": "node src/scripts/addCancellationFields.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.8.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "mysql2": "^3.16.0",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.1",
+    "pdfkit": "^0.15.0",
+    "resend": "^3.2.0",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.8.1",
+    "stripe": "^20.0.0",
+    "twilio": "^5.10.7",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "eslint": "^9.39.1",
+    "nodemon": "^3.1.11",
+    "prettier": "^3.7.4"
+  }
+}

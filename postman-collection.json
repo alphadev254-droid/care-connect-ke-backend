@@ -1,0 +1,589 @@
+{
+  "info": {
+    "name": "Home Care System API",
+    "description": "Complete API collection for Home Care System backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+1234567890\",\n  \"role\": \"patient\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"address\": \"123 Main St, City, State\",\n  \"emergencyContact\": \"emergency@example.com\",\n  \"medicalHistory\": \"No significant history\",\n  \"currentMedications\": \"None\",\n  \"allergies\": \"None known\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Caregiver",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"caregiver@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"phone\": \"+1234567891\",\n  \"role\": \"caregiver\",\n  \"licenseNumber\": \"RN123456\",\n  \"experience\": 5,\n  \"qualifications\": \"RN, BSN\",\n  \"hourlyRate\": 50.00,\n  \"bio\": \"Experienced registered nurse\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Primary Physician",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"doctor@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"Dr. Michael\",\n  \"lastName\": \"Johnson\",\n  \"phone\": \"+1234567892\",\n  \"role\": \"primary_physician\",\n  \"medicalLicenseNumber\": \"MD789012\",\n  \"specialization\": \"Internal Medicine\",\n  \"hospitalAffiliation\": \"City General Hospital\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('token', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John Updated\",\n  \"lastName\": \"Doe Updated\",\n  \"phone\": \"+1234567899\",\n  \"address\": \"456 New St, City, State\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Specialties",
+      "item": [
+        {
+          "name": "Get All Specialties",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/specialties",
+              "host": ["{{baseUrl}}"],
+              "path": ["specialties"]
+            }
+          }
+        },
+        {
+          "name": "Create Specialty (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nursing\",\n  \"description\": \"General nursing care and medical assistance\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/specialties",
+              "host": ["{{baseUrl}}"],
+              "path": ["specialties"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Caregivers",
+      "item": [
+        {
+          "name": "Get All Caregivers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/caregivers?page=1&limit=10&verified=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["caregivers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "verified",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Caregivers by Specialty",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/caregivers?specialtyId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["caregivers"],
+              "query": [
+                {
+                  "key": "specialtyId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Caregiver by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/caregivers/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["caregivers", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "Create Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"caregiverId\": 1,\n  \"specialtyId\": 1,\n  \"scheduledDate\": \"2024-01-15T10:00:00Z\",\n  \"duration\": 60,\n  \"sessionType\": \"in_person\",\n  \"notes\": \"Regular checkup appointment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments"]
+            }
+          }
+        },
+        {
+          "name": "Get My Appointments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/appointments?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Appointments by Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/appointments?status=pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Appointment by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/appointments/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Appointment Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/appointments/1/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments", "1", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teleconference",
+      "item": [
+        {
+          "name": "Create Video Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teleconference/room",
+              "host": ["{{baseUrl}}"],
+              "path": ["teleconference", "room"]
+            }
+          }
+        },
+        {
+          "name": "Get Access Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomName\": \"appointment-1-1234567890\",\n  \"identity\": \"patient@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teleconference/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["teleconference", "token"]
+            }
+          }
+        },
+        {
+          "name": "End Session",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/teleconference/end/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["teleconference", "end", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Create Care Session Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": 1,\n  \"observations\": \"Patient appeared alert and responsive. Vital signs within normal limits.\",\n  \"interventions\": \"Administered prescribed medications. Provided wound care.\",\n  \"vitals\": {\n    \"bloodPressure\": \"120/80\",\n    \"heartRate\": 72,\n    \"temperature\": 98.6,\n    \"oxygenSaturation\": 98\n  },\n  \"patientStatus\": \"stable\",\n  \"sessionSummary\": \"Routine care session completed successfully. Patient is stable and responding well to treatment.\",\n  \"recommendations\": \"Continue current medication regimen. Follow up in one week.\",\n  \"followUpRequired\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports"]
+            }
+          }
+        },
+        {
+          "name": "Create Critical Status Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": 2,\n  \"observations\": \"Patient showing signs of distress. Difficulty breathing observed.\",\n  \"interventions\": \"Oxygen therapy initiated. Emergency protocols activated.\",\n  \"vitals\": {\n    \"bloodPressure\": \"160/100\",\n    \"heartRate\": 110,\n    \"temperature\": 101.2,\n    \"oxygenSaturation\": 88\n  },\n  \"patientStatus\": \"critical\",\n  \"sessionSummary\": \"Patient condition deteriorated during session. Immediate medical attention required.\",\n  \"recommendations\": \"Emergency room evaluation recommended immediately.\",\n  \"followUpRequired\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports"]
+            }
+          }
+        },
+        {
+          "name": "Get All Reports",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Reports by Patient",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports?patientId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports"],
+              "query": [
+                {
+                  "key": "patientId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Verify Caregiver",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"verified\",\n  \"notes\": \"All credentials verified successfully\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/caregivers/1/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "caregivers", "1", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Reject Caregiver",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"rejected\",\n  \"notes\": \"Invalid license number provided\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/caregivers/1/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "caregivers", "1", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "dashboard"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
