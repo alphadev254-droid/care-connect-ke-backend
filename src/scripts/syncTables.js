@@ -1,4 +1,4 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../../../.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
 const db = require('../models');
 
 const args = process.argv.slice(2);
