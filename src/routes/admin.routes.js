@@ -4,6 +4,10 @@ const { authenticateToken } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/roleCheck.middleware');
 const { requirePermission, requireAnyPermission } = require('../middleware/permissions');
 const { sanitizeUser } = require('../utils/helpers');
+// Admin Withdrawal Management Routes
+const { Settlement, PaystackSubaccount, CaregiverEarnings, Caregiver, User, Role } = require('../models');
+const { syncSettlementsForSubaccount } = require('../jobs/settlementSync');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -924,256 +928,128 @@ router.get('/analytics/location-summary', async (req, res, next) => {
   }
 });
 
-// Admin Withdrawal Management Routes
+
+
+// ── GET /admin/withdrawals/overview ───────────────────────────────────────
+// Now returns settlement rows (not withdrawal requests) with caregiver +
+// subaccount info. Supports search, date range, pagination.
 router.get('/withdrawals/overview', requirePermission('view_withdrawal_requests'), async (req, res, next) => {
   try {
-    const { CaregiverEarnings, WithdrawalRequest, Caregiver, User, Role, sequelize } = require('../models');
-    const { Op } = require('sequelize');
-    const { page = 1, limit = 20, search = '', region = '', caregiverId = '' } = req.query;
+    const {
+      page = 1, limit = 100,
+      search = '',
+      region = '',
+      startDate, endDate,
+    } = req.query;
 
-    // Get current user for region filtering
-    const currentUser = await User.findByPk(req.user.id, {
-      include: [{ model: Role }]
-    });
+    const currentUser = await User.findByPk(req.user.id, { include: [{ model: Role }] });
 
+    // ── Caregiver filter ──────────────────────────────────────────────────
+    const caregiverWhere = {};
+    if (['regional_manager', 'Accountant'].includes(currentUser.Role?.name)) {
+      if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
+        caregiverWhere.region = currentUser.assignedRegion;
+      }
+    }
+    if (region && region !== 'all') caregiverWhere.region = region;
+
+    // ── User (name/email) search ──────────────────────────────────────────
     const userWhere = {};
     if (search) {
       userWhere[Op.or] = [
         { firstName: { [Op.like]: `%${search}%` } },
-        { lastName: { [Op.like]: `%${search}%` } },
-        { email: { [Op.like]: `%${search}%` } }
+        { lastName:  { [Op.like]: `%${search}%` } },
+        { email:     { [Op.like]: `%${search}%` } },
       ];
     }
 
-    const caregiverWhere = { verificationStatus: 'APPROVED' };
-
-    // Apply region filtering for regional managers and accountants
-    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
-      if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
-        caregiverWhere.region = currentUser.assignedRegion;
+    // ── Date filter on settlements ────────────────────────────────────────
+    const settlementWhere = {};
+    if (startDate || endDate) {
+      settlementWhere.settledAt = {};
+      if (startDate) settlementWhere.settledAt[Op.gte] = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        settlementWhere.settledAt[Op.lte] = end;
       }
     }
 
-    if (region) caregiverWhere.region = region;
-    if (caregiverId) caregiverWhere.id = parseInt(caregiverId);
+    const hasCaregiverFilter = Object.keys(caregiverWhere).length > 0;
+    const hasUserFilter      = Object.keys(userWhere).length > 0;
 
-    const { count, rows: caregivers } = await Caregiver.findAndCountAll({
-      where: caregiverWhere,
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const { count, rows: settlements } = await Settlement.findAndCountAll({
+      where: settlementWhere,
+      attributes: [
+        'id', 'caregiverId', 'paystackSettlementId', 'subaccountCode',
+        'amount', 'totalFees', 'status', 'settledAt', 'created_at',
+      ],
       include: [
         {
-          model: User,
-          attributes: ['id', 'firstName', 'lastName', 'email', 'phone'],
-          where: userWhere,
-          required: true
+          model: Caregiver,
+          attributes: ['id', 'region', 'district'],
+          required: hasCaregiverFilter || hasUserFilter,
+          where: hasCaregiverFilter ? caregiverWhere : undefined,
+          include: [
+            {
+              model: User,
+              attributes: ['firstName', 'lastName', 'email', 'phone'],
+              required: hasUserFilter,
+              where: hasUserFilter ? userWhere : undefined,
+            },
+            {
+              // Full subaccount info — NO masking for admin
+              model: PaystackSubaccount,
+              required: false,
+              attributes: ['subaccountCode', 'businessName', 'settlementBank', 'accountNumber', 'isActive'],
+            },
+          ],
         },
-        { model: CaregiverEarnings, required: false }
       ],
-      order: [[{ model: User }, 'firstName', 'ASC']],
-      limit: parseInt(limit),
-      offset: (parseInt(page) - 1) * parseInt(limit),
-      distinct: true
-    });
-
-    // Get withdrawal stats for the returned caregivers only
-    const caregiverIds = caregivers.map(c => c.id);
-    const withdrawalStats = await WithdrawalRequest.findAll({
-      attributes: [
-        [sequelize.col('caregiver_id'), 'caregiverId'],
-        [sequelize.fn('COUNT', sequelize.col('id')), 'totalWithdrawals'],
-        [sequelize.fn('SUM', sequelize.col('requested_amount')), 'totalWithdrawn'],
-        [sequelize.fn('MAX', sequelize.col('requested_at')), 'lastWithdrawal']
-      ],
-      where: { caregiverId: { [Op.in]: caregiverIds } },
-      group: ['caregiver_id'],
-      raw: true
-    });
-
-    const withdrawalMap = new Map();
-    withdrawalStats.forEach(stat => {
-      withdrawalMap.set(stat.caregiverId, stat);
-    });
-
-    const overview = caregivers.map(caregiver => {
-      const earnings = caregiver.CaregiverEarning || {};
-      const wStat = withdrawalMap.get(caregiver.id) || {};
-      return {
-        id: caregiver.id,
-        name: `${caregiver.User.firstName} ${caregiver.User.lastName}`,
-        email: caregiver.User.email,
-        phone: caregiver.User.phone,
-        totalEarnings: parseFloat(earnings.totalCaregiverEarnings || 0).toFixed(2),
-        availableBalance: parseFloat(earnings.walletBalance || 0).toFixed(2),
-        lockedBalance: parseFloat(earnings.lockedBalance || 0).toFixed(2),
-        totalWithdrawals: parseInt(wStat.totalWithdrawals || 0),
-        totalWithdrawn: parseFloat(wStat.totalWithdrawn || 0).toFixed(2),
-        lastWithdrawal: wStat.lastWithdrawal || null,
-        region: caregiver.region,
-        district: caregiver.district
-      };
+      order:    [['settledAt', 'DESC']],
+      limit:    parseInt(limit),
+      offset,
+      distinct: true,
     });
 
     res.json({
-      success: true,
-      caregivers: overview,
+      settlements,
       pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(count / parseInt(limit)),
-        totalRecords: count
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get('/withdrawals/history', requirePermission('view_withdrawal_requests'), async (req, res, next) => {
-  try {
-    const { WithdrawalRequest, Caregiver, User, Role } = require('../models');
-    const { page = 1, limit = 50, status, caregiverId } = req.query;
-
-    // Get current user for region filtering
-    const currentUser = await User.findByPk(req.user.id, {
-      include: [{ model: Role }]
-    });
-
-    let whereClause = {};
-    if (status) whereClause.status = status;
-    if (caregiverId) whereClause.caregiverId = caregiverId;
-
-    // Build caregiver where clause for region filtering
-    let caregiverWhere = {};
-    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
-      if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
-        caregiverWhere.region = currentUser.assignedRegion;
-      }
-    }
-
-    const { count, rows: withdrawals } = await WithdrawalRequest.findAndCountAll({
-      where: whereClause,
-      include: [{
-        model: Caregiver,
-        where: Object.keys(caregiverWhere).length > 0 ? caregiverWhere : undefined,
-        required: true,
-        include: [{
-          model: User,
-          attributes: ['firstName', 'lastName', 'email']
-        }]
-      }],
-      order: [['requestedAt', 'DESC']],
-      limit: parseInt(limit),
-      offset: (parseInt(page) - 1) * parseInt(limit)
-    });
-
-    res.json({
-      success: true,
-      withdrawals,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(count / parseInt(limit)),
-        totalRecords: count
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get('/withdrawals/stats', requirePermission('view_withdrawal_requests'), async (req, res, next) => {
-  try {
-    const { WithdrawalRequest, CaregiverEarnings, Caregiver, User, Role, sequelize } = require('../models');
-    const { Op } = require('sequelize');
-
-    // Get current user for region filtering
-    const currentUser = await User.findByPk(req.user.id, {
-      include: [{ model: Role }]
-    });
-
-    // Get list of caregiver IDs in the assigned region (if applicable)
-    let caregiverIds = null;
-    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
-      if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
-        const caregivers = await Caregiver.findAll({
-          where: { region: currentUser.assignedRegion },
-          attributes: ['id']
-        });
-        caregiverIds = caregivers.map(c => c.id);
-      }
-    }
-
-    // Build where clause for withdrawal requests
-    const withdrawalWhere = caregiverIds ? { caregiverId: { [Op.in]: caregiverIds } } : {};
-    const earningsWhere = caregiverIds ? { caregiverId: { [Op.in]: caregiverIds } } : {};
-
-    const totalPending = await WithdrawalRequest.sum('requestedAmount', {
-      where: { ...withdrawalWhere, status: 'pending' }
-    }) || 0;
-
-    const totalProcessed = await WithdrawalRequest.sum('netPayout', {
-      where: { ...withdrawalWhere, status: 'completed' }
-    }) || 0;
-
-    const totalAvailableBalance = await CaregiverEarnings.sum('walletBalance', {
-      where: earningsWhere
-    }) || 0;
-
-    const totalLockedBalance = await CaregiverEarnings.sum('lockedBalance', {
-      where: earningsWhere
-    }) || 0;
-
-    const monthlyStats = await WithdrawalRequest.findAll({
-      attributes: [
-        [sequelize.fn('DATE_FORMAT', sequelize.col('requested_at'), '%Y-%m'), 'month'],
-        [sequelize.fn('COUNT', sequelize.col('WithdrawalRequest.id')), 'count'],
-        [sequelize.fn('SUM', sequelize.col('net_payout')), 'totalAmount']
-      ],
-      where: {
-        ...withdrawalWhere,
-        requestedAt: {
-          [Op.gte]: new Date(new Date().setMonth(new Date().getMonth() - 12))
-        }
+        currentPage:  parseInt(page),
+        totalPages:   Math.ceil(count / parseInt(limit)),
+        totalRecords: count,
+        pageSize:     parseInt(limit),
       },
-      group: [sequelize.fn('DATE_FORMAT', sequelize.col('requested_at'), '%Y-%m')],
-      order: [[sequelize.fn('DATE_FORMAT', sequelize.col('requested_at'), '%Y-%m'), 'ASC']],
-      raw: true
-    });
-
-    res.json({
-      success: true,
-      stats: {
-        totalPending,
-        totalProcessed,
-        totalAvailableBalance,
-        totalLockedBalance,
-        monthlyStats
-      }
     });
   } catch (error) {
     next(error);
   }
 });
 
-// Get PayChangu wallet balance (live balance from payment provider)
-router.get('/withdrawals/paychangu-balance', requirePermission('view_paychangu_balance'), async (req, res, next) => {
+// ── POST /admin/withdrawals/sync/:caregiverId ─────────────────────────────
+// Admin manually triggers settlement sync for any caregiver
+router.post('/withdrawals/sync/:caregiverId', requirePermission('view_withdrawal_requests'), async (req, res, next) => {
   try {
-    const axios = require('axios');
-    const paymentConfig = require('../config/payment');
+    const { caregiverId } = req.params;
 
-    const response = await axios.get(`${paymentConfig.paychangu.apiUrl}/wallet-balance`, {
-      params: { currency: 'MWK' },
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${paymentConfig.paychangu.secretKey}`
-      }
+    const subaccount = await PaystackSubaccount.findOne({
+      where: { caregiverId, isActive: true },
+      attributes: ['subaccountCode'],
     });
 
-    res.json({
-      success: true,
-      balance: response.data.data
-    });
+    if (!subaccount) {
+      return res.status(404).json({ error: 'No active subaccount found for this caregiver.' });
+    }
+
+    const synced = await syncSettlementsForSubaccount(caregiverId, subaccount.subaccountCode);
+    res.json({ message: `Synced ${synced} settlements for caregiver ${caregiverId}`, synced });
   } catch (error) {
-    console.error('Failed to fetch PayChangu balance:', error.response?.data || error.message);
     next(error);
   }
 });
+
+
 
 module.exports = router;

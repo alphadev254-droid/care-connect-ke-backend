@@ -30,6 +30,24 @@ const createSubaccount = async ({ businessName, settlementBank, accountNumber, p
   }
 };
 
+// Add this method alongside createSubaccount in your paystackService
+
+const updateSubaccount = async ({ subaccountCode, businessName, settlementBank, accountNumber, percentageCharge = 78 }) => {
+  try {
+    const response = await api.put(`/subaccount/${subaccountCode}`, {
+      business_name: businessName,
+      settlement_bank: settlementBank,
+      account_number: accountNumber,
+      percentage_charge: percentageCharge
+    });
+    logger.info(`Paystack subaccount updated: ${subaccountCode}`);
+    return response.data.data;
+  } catch (error) {
+    logger.error('Paystack updateSubaccount failed:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Failed to update Paystack subaccount');
+  }
+};
+
 /**
  * Initialize a payment transaction
  * bearer: 'account' means platform bears Paystack's own processing fee
@@ -137,10 +155,10 @@ const calculateFees = (baseFee, channel = 'mobile_money') => {
   const { platformCommissionRate, convenienceFeeCard, convenienceFeeMobile } = paymentConfig.paystack;
   const convenienceFeePercentage = channel === 'card' ? convenienceFeeCard : convenienceFeeMobile;
   const convenienceFee = Math.max(1, Math.ceil((baseFee * convenienceFeePercentage) / 100));
-  const platformCommission = parseFloat(((baseFee * platformCommissionRate) / 100).toFixed(2));
-  const caregiverEarnings = parseFloat((baseFee - platformCommission).toFixed(2));
-  const totalAmount = parseFloat((baseFee + convenienceFee).toFixed(2));
-  const transactionCharge = parseFloat((platformCommission + convenienceFee).toFixed(2));
+  const platformCommission = Math.ceil((baseFee * platformCommissionRate) / 100);
+  const caregiverEarnings = baseFee - platformCommission;
+  const totalAmount = baseFee + convenienceFee;
+  const transactionCharge = platformCommission + convenienceFee;
 
   return {
     baseFee,
@@ -161,5 +179,6 @@ module.exports = {
   verifyWebhookSignature,
   fetchSettlements,
   getBanks,
-  calculateFees
+  calculateFees,
+  updateSubaccount
 };

@@ -24,7 +24,13 @@ const getMySubaccount = async (req, res, next) => {
     const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
     if (!caregiver) return res.status(404).json({ error: 'Caregiver profile not found' });
 
-    const subaccount = await PaystackSubaccount.findOne({ where: { caregiverId: caregiver.id } });
+    const subaccount = await PaystackSubaccount.findOne({ where: { caregiverId: caregiver.id }, attributes: { exclude: ['paystackResponse','percentageCharge'] } });
+
+    if (subaccount?.subaccountCode) {
+  subaccount.subaccountCode =
+    subaccount.subaccountCode.slice(0, -7) + '*******';
+     }
+
     res.json({ subaccount: subaccount || null });
   } catch (error) {
     next(error);
@@ -34,6 +40,12 @@ const getMySubaccount = async (req, res, next) => {
 /**
  * POST /api/settlements/subaccount
  * Caregiver submits bank details — creates or updates Paystack subaccount
+ */
+/**
+ * POST /api/settlements/subaccount
+ * Creates or updates a Paystack subaccount for the caregiver.
+ * - First time: calls paystackService.createSubaccount
+ * - Subsequent times: calls paystackService.updateSubaccount with the stored subaccountCode
  */
 const saveSubaccount = async (req, res, next) => {
   try {
@@ -48,26 +60,38 @@ const saveSubaccount = async (req, res, next) => {
 
     const existing = await PaystackSubaccount.findOne({ where: { caregiverId: caregiver.id } });
 
-    // Call Paystack API to create subaccount
-    const paystackData = await paystackService.createSubaccount({
-      businessName,
-      settlementBank,
-      accountNumber,
-      percentageCharge: 78
-    });
+    let paystackData;
 
     if (existing) {
+      // UPDATE — use the stored subaccountCode, no new subaccount created on Paystack
+      paystackData = await paystackService.updateSubaccount({
+        subaccountCode: existing.subaccountCode,
+        businessName,
+        settlementBank,
+        accountNumber,
+        percentageCharge: existing.percentageCharge ?? 78
+      });
+
       await existing.update({
         businessName,
         settlementBank,
         accountNumber,
         accountName: accountName || null,
-        subaccountCode: paystackData.subaccount_code,
+        // subaccountCode stays the same — Paystack doesn't change it on update
         paystackResponse: paystackData,
         isActive: true
       });
+
       return res.json({ message: 'Subaccount updated successfully', subaccount: existing });
     }
+
+    // ✅ CREATE — first time setup
+    paystackData = await paystackService.createSubaccount({
+      businessName,
+      settlementBank,
+      accountNumber,
+      percentageCharge: 78
+    });
 
     const subaccount = await PaystackSubaccount.create({
       caregiverId: caregiver.id,

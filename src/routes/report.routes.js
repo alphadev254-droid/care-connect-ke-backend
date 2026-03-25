@@ -1,6 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { createReport, getReports, getReportById } = require('../controllers/reportController');
+const { createReport, getReports, getReportById, getReportAttachmentToken } = require('../controllers/reportController');
 const { authenticateToken } = require('../middleware/auth.middleware');
 const { requireCaregiver } = require('../middleware/roleCheck.middleware');
 const { handleValidationErrors } = require('../middleware/validator.middleware');
@@ -9,7 +9,21 @@ const { upload } = require('../middleware/upload.middleware');
 const router = express.Router();
 
 const createReportValidation = [
-  body('appointmentId').isInt(),
+  // appointmentId is stored as UUID in the DB (see Appointment model).
+  // Accept both numeric ids (legacy) and UUIDs to avoid breaking old data.
+  body('appointmentId').custom((value) => {
+    const str = String(value || '').trim();
+    if (!str) return false;
+
+    // Numeric legacy id
+    if (/^\d+$/.test(str)) return true;
+
+    // UUID (8-4-4-4-12)
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    if (uuidRegex.test(str)) return true;
+
+    throw new Error('Invalid value');
+  }),
   body('observations').trim().notEmpty(),
   body('interventions').trim().notEmpty(),
   body('patientStatus').isIn(['stable', 'improving', 'deteriorating', 'critical', 'cured', 'deceased']),
@@ -20,6 +34,7 @@ router.use(authenticateToken);
 
 router.post('/', requireCaregiver, upload.array('attachments', 5), createReportValidation, handleValidationErrors, createReport);
 router.get('/', getReports);
+router.get('/:id/attachments/:index/token', getReportAttachmentToken);
 router.get('/caregiver', async (req, res, next) => {
   try {
     const { CareSessionReport, Appointment, Patient, User, Caregiver } = require('../models');

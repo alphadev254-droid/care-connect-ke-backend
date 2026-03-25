@@ -89,7 +89,7 @@ async function seedDatabase() {
       // Caregiver
       ...rp('caregiver', [
         'view_dashboard', 'manage_appointments', 'view_appointments',
-        'view_patients', 'manage_reports', 'view_reports'
+        'view_patients', 'manage_reports', 'view_reports', 'view_financial_reports'
       ]),
 
       // Regional manager

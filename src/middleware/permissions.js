@@ -34,7 +34,7 @@ const requirePermission = (permissionName) => {
 
       if (!hasPermission) {
         return res.status(403).json({ 
-          error: `Access denied - requires ${permissionName} permission` 
+          error: `Access denied ` 
         });
       }
 

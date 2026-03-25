@@ -108,6 +108,7 @@ const getAppointments = async (req, res, next) => {
   try {
     const { page = 1, limit = 50, status } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
+    const isSlim = req.query.slim === 'true' || req.query.projection === 'dashboard';
 
     let whereClause = {};
     if (status) whereClause.status = status;
@@ -133,15 +134,30 @@ const getAppointments = async (req, res, next) => {
       whereClause.bookingFeeStatus = PAYMENT_STATUS.COMPLETED;
     }
 
+    const appointmentAttributes = [
+      'id',
+      'status',
+      'scheduledDate',
+      'sessionType',
+      ...(isSlim ? [] : ['notes']),
+      'totalCost',
+      'bookingFee',
+      'sessionFee',
+      'bookingFeeStatus',
+      'sessionFeeStatus',
+      'paymentStatus',
+      ...(isSlim ? [] : ['rescheduleCount']),
+      ...(isSlim ? [] : ['jitsiRoomName']),
+      ...(isSlim ? [] : ['patientMeetingToken', 'caregiverMeetingToken']),
+      'patientId',
+      'caregiverId',
+      'specialtyId',
+      'timeSlotId'
+    ];
+
     const appointments = await Appointment.findAll({
       where: whereClause,
-      attributes: [
-        'id', 'status', 'scheduledDate', 'sessionType', 'notes',
-        'totalCost', 'bookingFee', 'sessionFee',
-        'bookingFeeStatus', 'sessionFeeStatus', 'paymentStatus',
-        'rescheduleCount', 'jitsiRoomName', 'patientMeetingToken', 'caregiverMeetingToken',
-        'patientId', 'caregiverId', 'specialtyId', 'timeSlotId'
-      ],
+      attributes: appointmentAttributes,
       include: [
         patientInclude,
         caregiverInclude,

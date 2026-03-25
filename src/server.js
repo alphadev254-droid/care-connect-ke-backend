@@ -102,6 +102,11 @@ app.use('/api/payments/initiate-session', paymentLimiter);
 app.use('/api', routes);
 
 // /uploads is NOT served statically — use /api/documents/view?token=... instead
+app.use('/uploads', (req, res) => {
+  return res.status(403).json({
+    error: 'Direct file access is disabled. Use tokenized document URLs.'
+  });
+});
 
 // Health check
 app.get('/health', (req, res) => {
