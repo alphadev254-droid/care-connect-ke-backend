@@ -8,7 +8,7 @@ Version: 1.0
 
 1. Definitions
 
-Platform – The CareConnect platform, including web and mobile applications.
+Platform – The TunzaConnect platform, including web and mobile applications.
 
 Caregiver – A verified healthcare professional offering services through the platform.
 
@@ -50,14 +50,14 @@ This authorization remains valid throughout your registration with the platform 
 
 All patient and system data must be kept confidential and handled according to applicable laws.
 
-8. Data Protection & Privacy (Malawi Data Privacy Protection Act Compliance)
+8. Data Protection & Privacy (Kenya Data Privacy Protection Act Compliance)
 
 By registering with our platform, you acknowledge and consent to:
 • Collection, processing, and storage of your personal and professional data as necessary for platform operation and healthcare service delivery.
 • Background checks and credential verification processes.
 • Data sharing with patients, healthcare authorities, and regulatory bodies as required.
 • Data retention for legal, professional, and regulatory compliance requirements.
-• Your rights under the Malawi Data Privacy Protection Act, including the right to access, correct, or request deletion of your personal data.
+• Your rights under the Kenya Data Privacy Protection Act, including the right to access, correct, or request deletion of your personal data.
 • Automated email notifications regarding your account, appointments, compliance matters, and data protection policies.
 • Cross-border data transfers where necessary for service provision, with appropriate safeguards.
 
@@ -66,7 +66,7 @@ You have the right to:
 • Request correction of inaccurate personal data.
 • Request deletion of your personal data (subject to legal, professional, and regulatory record retention requirements).
 • Withdraw consent for non-essential data processing.
-• Lodge complaints with the Malawi Data Protection Authority.
+• Lodge complaints with the Kenya Data Protection Authority.
 
 As a healthcare professional, you acknowledge that certain data retention and sharing requirements may override deletion requests due to professional and legal obligations.
 
@@ -119,7 +119,7 @@ The platform may revise these terms and notify users of significant changes via 
 
 17. Governing Law
 
-This agreement is governed by the laws of Malawi, including the Malawi Data Privacy Protection Act and applicable healthcare professional regulations.
+This agreement is governed by the laws of Kenya, including the Kenya Data Privacy Protection Act and applicable healthcare professional regulations.
 
 === PRIVACY POLICY ===
 
@@ -188,7 +188,7 @@ Professional records may be retained for extended periods as required by healthc
 
 24. Your Privacy Rights
 
-Under the Malawi Data Privacy Protection Act, you have the right to:
+Under the Kenya Data Privacy Protection Act, you have the right to:
 • Access your personal data
 • Correct inaccurate information
 • Request deletion of your data (subject to professional and legal requirements)
@@ -200,7 +200,7 @@ Note: Some rights may be limited due to professional and regulatory obligations.
 
 25. Acceptance Statement
 
-By using the system, you confirm that you have read, understood, and agreed to these terms of service and privacy policy, including your data protection rights under Malawi law and your professional obligations as a healthcare provider.
+By using the system, you confirm that you have read, understood, and agreed to these terms of service and privacy policy, including your data protection rights under Kenya law and your professional obligations as a healthcare provider.
 `;
 
 module.exports = caregiverTerms;

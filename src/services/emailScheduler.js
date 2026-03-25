@@ -34,23 +34,23 @@ class EmailScheduler {
 
   static getSubjectForTemplate(template) {
     const subjects = {
-      'user_welcome': 'Welcome to CareConnect - Account Created',
-      'caregiver_verification': 'Account Verified - CareConnect',
-      'caregiver_rejection': 'Account Verification - CareConnect',
-      'account_status_change': 'Account Status Update - CareConnect',
-      'caregiver_registration': 'Registration Received - CareConnect',
-      'password_reset': 'Password Reset Request - CareConnect',
-      'password_change': 'Password Changed - CareConnect',
-      'appointment_confirmation': 'Appointment Confirmation - CareConnect',
-      'payment_confirmation': 'Payment Confirmation - CareConnect',
-      'payment_failure': 'Payment Failed - CareConnect',
-      'booking_expired': 'Booking Expired - CareConnect',
+      'user_welcome': 'Welcome to TunzaConnect - Account Created',
+      'caregiver_verification': 'Account Verified - TunzaConnect',
+      'caregiver_rejection': 'Account Verification - TunzaConnect',
+      'account_status_change': 'Account Status Update - TunzaConnect',
+      'caregiver_registration': 'Registration Received - TunzaConnect',
+      'password_reset': 'Password Reset Request - TunzaConnect',
+      'password_change': 'Password Changed - TunzaConnect',
+      'appointment_confirmation': 'Appointment Confirmation - TunzaConnect',
+      'payment_confirmation': 'Payment Confirmation - TunzaConnect',
+      'payment_failure': 'Payment Failed - TunzaConnect',
+      'booking_expired': 'Booking Expired - TunzaConnect',
       'status_alert': 'Patient Status Alert',
-      'reschedule_notification': 'Appointment Rescheduled - CareConnect',
-      'cancellation_notification': 'Appointment Cancelled - CareConnect',
-      'data_protection_notification': 'Data Protection Policy Acknowledgment - CareConnect'
+      'reschedule_notification': 'Appointment Rescheduled - TunzaConnect',
+      'cancellation_notification': 'Appointment Cancelled - TunzaConnect',
+      'data_protection_notification': 'Data Protection Policy Acknowledgment - TunzaConnect'
     };
-    return subjects[template] || 'Notification from CareConnect';
+    return subjects[template] || 'Notification from TunzaConnect';
   }
 
   static async processEmailQueue() {

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const baseUrl = 'https://careconnectmalawi.com';
+const baseUrl = 'https://tunzaconnect.com';
 
 const pages = [
   { url: '/', priority: '1.0', changefreq: 'daily' },
@@ -23,7 +23,7 @@ ${pages.map(page => `  <url>
   </url>`).join('\n')}
 </urlset>`;
 
-  const publicPath = path.join(__dirname, '../../care-connect-enhance/public/sitemap.xml');
+  const publicPath = path.join(__dirname, '../../tunza-connect-enhance/public/sitemap.xml');
   fs.writeFileSync(publicPath, sitemap);
   console.log('✅ Sitemap generated at public/sitemap.xml');
 };

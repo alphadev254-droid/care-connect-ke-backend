@@ -38,7 +38,7 @@ const sendEmail = async (to, subject, html) => {
 };
 
 const sendAppointmentConfirmation = async (patientEmail, appointmentDetails) => {
-  const subject = 'Appointment Confirmation - CareConnect';
+  const subject = 'Appointment Confirmation - TunzaConnect Healthcare';
   const formattedDate = new Date(appointmentDetails.scheduledDate).toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -122,7 +122,7 @@ const sendAppointmentConfirmation = async (patientEmail, appointmentDetails) => 
           </center>
         </div>
         <div class="footer">
-          <p>© ${new Date().getFullYear()} CareConnect. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} TunzaConnect Healthcare. All rights reserved.</p>
           <p>This is an automated message, please do not reply directly to this email.</p>
         </div>
       </div>
@@ -134,7 +134,7 @@ const sendAppointmentConfirmation = async (patientEmail, appointmentDetails) => 
 };
 
 const sendStatusAlert = async (recipientEmail, alertDetails) => {
-  const subject = `Patient Status Alert - ${alertDetails.severity.toUpperCase()}`;
+  const subject = `Patient Status Alert - ${alertDetails.severity.toUpperCase()} - TunzaConnect Healthcare`;
 
   const html = `
     <!DOCTYPE html>
@@ -195,7 +195,7 @@ const sendStatusAlert = async (recipientEmail, alertDetails) => {
           </center>
         </div>
         <div class="footer">
-          <p>© ${new Date().getFullYear()} CareConnect. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} TunzaConnect Healthcare . All rights reserved.</p>
           <p>This is an automated alert. For urgent matters, please contact the care team directly.</p>
         </div>
       </div>
@@ -207,7 +207,7 @@ const sendStatusAlert = async (recipientEmail, alertDetails) => {
 };
 
 const sendPasswordChangeNotification = async (email, firstName) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Password Changed - ${systemName}`;
   const html = `
     <!DOCTYPE html>
@@ -245,7 +245,7 @@ const sendPasswordChangeNotification = async (email, firstName) => {
 };
 
 const sendCaregiverRegistrationNotification = async (email, firstName) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Registration Received - ${systemName}`;
   const html = `
     <!DOCTYPE html>
@@ -284,7 +284,7 @@ const sendCaregiverRegistrationNotification = async (email, firstName) => {
 };
 
 const sendCaregiverVerificationNotification = async (email, firstName) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const frontendUrl = getPrimaryFrontendUrl();
   const subject = `Account Verified - ${systemName}`;
   const html = `
@@ -336,7 +336,7 @@ const sendCaregiverVerificationNotification = async (email, firstName) => {
 };
 
 const sendCaregiverRejectionNotification = async (email, firstName, reason) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Account Verification - ${systemName}`;
   const html = `
     <!DOCTYPE html>
@@ -382,7 +382,7 @@ const sendCaregiverRejectionNotification = async (email, firstName, reason) => {
 };
 
 const sendAccountStatusNotification = async (email, firstName, isActive) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const status = isActive ? 'Activated' : 'Deactivated';
   const subject = `Account ${status} - ${systemName}`;
   const html = `
@@ -425,7 +425,7 @@ const sendAccountStatusNotification = async (email, firstName, isActive) => {
 };
 
 const sendPasswordResetEmail = async (email, firstName, resetUrl) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Password Reset Request - ${systemName}`;
   const html = `
     <!DOCTYPE html>
@@ -483,7 +483,8 @@ const sendPasswordResetEmail = async (email, firstName, resetUrl) => {
 };
 
 const sendPaymentConfirmation = async (patientEmail, paymentDetails) => {
-  const subject = 'Payment Confirmation - CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
+  const subject = `Payment Confirmation - ${systemName}`;
   const formattedDate = new Date(paymentDetails.appointmentDate).toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -527,7 +528,7 @@ const sendPaymentConfirmation = async (patientEmail, paymentDetails) => {
           <div class="payment-box">
             <div class="detail-row">
               <strong>Amount Paid:</strong>
-              <span class="amount">MWK ${paymentDetails.amount}</span>
+              <span class="amount">Ksh ${paymentDetails.amount}</span>
             </div>
             <div class="detail-row">
               <strong>Transaction ID:</strong>
@@ -574,7 +575,7 @@ const sendPaymentConfirmation = async (patientEmail, paymentDetails) => {
           </center>
         </div>
         <div class="footer">
-          <p>© ${new Date().getFullYear()} CareConnect. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} TunzaConnect Healthcare. All rights reserved.</p>
           <p>Keep this email as your payment receipt.</p>
         </div>
       </div>
@@ -586,7 +587,8 @@ const sendPaymentConfirmation = async (patientEmail, paymentDetails) => {
 };
 
 const sendPaymentFailureNotification = async (patientEmail, paymentDetails) => {
-  const subject = 'Payment Failed - CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
+  const subject = `Payment Failed - ${systemName}`;
 
   const html = `
     <!DOCTYPE html>
@@ -620,7 +622,7 @@ const sendPaymentFailureNotification = async (patientEmail, paymentDetails) => {
           <div class="failure-box">
             <div class="detail-row">
               <strong>Amount:</strong>
-              <span class="amount">MWK ${paymentDetails.amount}</span>
+              <span class="amount">Ksh ${paymentDetails.amount}</span>
             </div>
             <div class="detail-row">
               <strong>Transaction ID:</strong>
@@ -658,7 +660,7 @@ const sendPaymentFailureNotification = async (patientEmail, paymentDetails) => {
           </center>
         </div>
         <div class="footer">
-          <p>© ${new Date().getFullYear()} CareConnect. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} TunzaConnect Healthcare. All rights reserved.</p>
           <p>Need help? Contact our support team at support@homecaresystem.com</p>
         </div>
       </div>
@@ -670,7 +672,8 @@ const sendPaymentFailureNotification = async (patientEmail, paymentDetails) => {
 };
 
 const sendBookingExpiredNotification = async (patientEmail, bookingDetails) => {
-  const subject = 'Booking Expired - CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
+  const subject = `Booking Expired - ${systemName}`;
   const formattedExpiry = new Date(bookingDetails.expiresAt).toLocaleString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -741,7 +744,7 @@ const sendBookingExpiredNotification = async (patientEmail, bookingDetails) => {
           </center>
         </div>
         <div class="footer">
-          <p>© ${new Date().getFullYear()} CareConnect. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} TunzaConnect Healthcare. All rights reserved.</p>
           <p>Questions? Contact support@homecaresystem.com</p>
         </div>
       </div>
@@ -753,7 +756,7 @@ const sendBookingExpiredNotification = async (patientEmail, bookingDetails) => {
 };
 
 const sendRescheduleNotification = async (recipientEmail, recipientName, rescheduleBy, rescheduleByName, newDateTime, jitsiMeetingUrl = null) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Appointment Rescheduled - ${systemName}`;
   const isPatient = rescheduleBy === 'patient';
 
@@ -838,7 +841,7 @@ const sendRescheduleNotification = async (recipientEmail, recipientName, resched
 };
 
 const sendCancellationNotification = async (recipientEmail, recipientName, appointmentDateTime, reason) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Appointment Cancelled - ${systemName}`;
   
   const html = `
@@ -904,7 +907,7 @@ const sendCancellationNotification = async (recipientEmail, recipientName, appoi
 };
 
 const sendUserWelcomeEmail = async (userDetails) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Welcome to ${systemName} - Account Created`;
   const { email, firstName, lastName, password, role, assignedRegion } = userDetails;
   
@@ -997,7 +1000,7 @@ const sendUserWelcomeEmail = async (userDetails) => {
 };
 
 const sendCaregiverAppointmentNotification = async (caregiverEmail, appointmentDetails) => {
-  const subject = 'New Appointment Booked - CareConnect';
+  const subject = 'New Appointment Booked - TunzaConnect Healthcare';
   const formattedDate = new Date(appointmentDetails.scheduledDate).toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -1087,7 +1090,7 @@ const sendCaregiverAppointmentNotification = async (caregiverEmail, appointmentD
           </center>
         </div>
         <div class="footer">
-          <p>© ${new Date().getFullYear()} CareConnect. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} TunzaConnect Healthcare. All rights reserved.</p>
           <p>This is an automated message, please do not reply directly to this email.</p>
         </div>
       </div>
@@ -1100,7 +1103,7 @@ const sendCaregiverAppointmentNotification = async (caregiverEmail, appointmentD
 
 const sendDataProtectionNotification = async (userData) => {
   const { firstName, lastName, email, role } = userData;
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Data Protection Policy Acknowledgment - ${systemName}`;
   
   // Determine role-specific content
@@ -1142,7 +1145,7 @@ const sendDataProtectionNotification = async (userData) => {
         <div class="content">
           <h2>Dear ${firstName} ${lastName},</h2>
           
-          <p>Thank you for registering with ${systemName} as a <strong>${roleDisplayName}</strong>. This email confirms that by creating your account, you have acknowledged and accepted our data protection policies in compliance with the <strong>Malawi Data Privacy Protection Act</strong>.</p>
+          <p>Thank you for registering with ${systemName} as a <strong>${roleDisplayName}</strong>. This email confirms that by creating your account, you have acknowledged and accepted our data protection policies in compliance with the <strong>Kenya Data Privacy Protection Act</strong>.</p>
           
           <div class="highlight">
             <h3>Registration Confirmation:</h3>
@@ -1151,13 +1154,13 @@ const sendDataProtectionNotification = async (userData) => {
           </div>
           
           <div class="rights-box">
-            <h3> Your Data Protection Rights Under Malawi Law:</h3>
+            <h3> Your Data Protection Rights Under Kenya Law:</h3>
             <ul>
               <li><strong>Right to Access:</strong> You can request access to your personal data held by our platform</li>
               <li><strong>Right to Correction:</strong> You can request correction of any inaccurate personal data</li>
               <li><strong>Right to Deletion:</strong> You can request deletion of your personal data (subject to legal and medical record retention requirements)</li>
               <li><strong>Right to Withdraw Consent:</strong> You can withdraw consent for non-essential data processing</li>
-              <li><strong>Right to Complain:</strong> You can lodge complaints with the Malawi Data Protection Authority</li>
+              <li><strong>Right to Complain:</strong> You can lodge complaints with the Kenya Data Protection Authority</li>
             </ul>
           </div>
           
@@ -1220,7 +1223,7 @@ const sendDataProtectionNotification = async (userData) => {
         </div>
         
         <div class="footer">
-          <p>This is an automated message sent in compliance with the Malawi Data Privacy Protection Act.</p>
+          <p>This is an automated message sent in compliance with the Kenya Data Privacy Protection Act.</p>
           <p><strong>${systemName} Healthcare Platform</strong><br>
           Committed to protecting your privacy and data rights.</p>
           <p>© ${new Date().getFullYear()} ${systemName}. All rights reserved.</p>
@@ -1235,7 +1238,7 @@ const sendDataProtectionNotification = async (userData) => {
 
 // Send custom message from system manager to caregiver
 const sendCustomMessageToCaregiver = async (caregiverEmail, caregiverFirstName, senderName, subject, messageContent) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const emailSubject = `${subject} - ${systemName}`;
   const frontendUrl = getPrimaryFrontendUrl();
 
@@ -1290,7 +1293,7 @@ ${messageContent}
 };
 
 const sendWithdrawalTokenEmail = async (caregiverEmail, caregiverName, token) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Withdrawal Verification Token - ${systemName}`;
   
   const html = `
@@ -1349,7 +1352,7 @@ const sendWithdrawalTokenEmail = async (caregiverEmail, caregiverName, token) =>
 };
 
 const sendWithdrawalSuccessEmail = async (caregiverEmail, withdrawalDetails) => {
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `Withdrawal Successful - ${systemName}`;
   
   const html = `
@@ -1435,7 +1438,7 @@ const sendWithdrawalSuccessEmail = async (caregiverEmail, withdrawalDetails) => 
 
 const sendReferralInvitation = async (details) => {
   const { recipientEmail, caregiverName, referralLink, personalMessage } = details;
-  const systemName = process.env.SYSTEM || 'CareConnect';
+  const systemName = process.env.SYSTEM || 'TunzaConnect Healthcare';
   const subject = `${caregiverName} recommends ${systemName} Healthcare`;
 
   const html = `

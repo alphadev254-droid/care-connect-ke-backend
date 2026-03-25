@@ -79,8 +79,8 @@ router.get('/terms/:role/pdf', (req, res) => {
     // Add header
     doc.fontSize(18)
        .font('Helvetica-Bold')
-       .text('CareConnect Home Care System', { align: 'center' })
-       .moveDown();
+       .text(' TunzaConnect Home Care System', { align: 'center' })
+       .moveDown(); 
 
     doc.fontSize(14)
        .font('Helvetica-Bold')

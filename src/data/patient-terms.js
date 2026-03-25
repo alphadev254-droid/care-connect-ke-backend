@@ -45,13 +45,13 @@ Patients must:
 All medical information is protected under applicable healthcare privacy laws.
 Patient data will only be shared with authorized healthcare providers involved in care.
 
-6. Data Protection & Privacy (Malawi Data Privacy Protection Act Compliance)
+6. Data Protection & Privacy (Kenya Data Privacy Protection Act Compliance)
 
 By registering with our platform, you acknowledge and consent to:
 • Collection, processing, and storage of your personal and medical data as necessary for healthcare service delivery.
 • Data sharing with verified healthcare providers involved in your care.
 • Data retention for legal and medical record-keeping requirements.
-• Your rights under the Malawi Data Privacy Protection Act, including the right to access, correct, or request deletion of your personal data.
+• Your rights under the Kenya Data Privacy Protection Act, including the right to access, correct, or request deletion of your personal data.
 • Automated email notifications regarding your account, appointments, and data protection policies.
 • Cross-border data transfers where necessary for service provision, with appropriate safeguards.
 
@@ -60,7 +60,7 @@ You have the right to:
 • Request correction of inaccurate personal data.
 • Request deletion of your personal data (subject to legal and medical record retention requirements).
 • Withdraw consent for non-essential data processing.
-• Lodge complaints with the Malawi Data Protection Authority.
+• Lodge complaints with the Kenya Data Protection Authority.
 
 7. Payments & Billing
 
@@ -132,7 +132,7 @@ The platform may update these terms and will notify patients of significant chan
 
 16. Governing Law
 
-This agreement is governed by the laws of Malawi, including the Malawi Data Privacy Protection Act.
+This agreement is governed by the laws of Kenya, including the Kenya Data Privacy Protection Act.
 
 === PRIVACY POLICY ===
 
@@ -184,7 +184,7 @@ Medical records may be retained for extended periods as required by healthcare r
 
 22. Your Privacy Rights
 
-Under the Malawi Data Privacy Protection Act, you have the right to:
+Under the Kenya Data Privacy Protection Act, you have the right to:
 • Access your personal data
 • Correct inaccurate information
 • Request deletion of your data (subject to legal requirements)
@@ -194,7 +194,7 @@ Under the Malawi Data Privacy Protection Act, you have the right to:
 
 23. Acceptance Statement
 
-By using the system, you confirm that you have read, understood, and agreed to these terms of service and privacy policy, and acknowledge your rights and responsibilities as a patient, including your data protection rights under Malawi law.
+By using the system, you confirm that you have read, understood, and agreed to these terms of service and privacy policy, and acknowledge your rights and responsibilities as a patient, including your data protection rights under Kenya law.
 `;
 
 module.exports = patientTerms;

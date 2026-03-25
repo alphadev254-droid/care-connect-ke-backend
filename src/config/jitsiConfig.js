@@ -117,7 +117,7 @@ module.exports = {
         },
 
         // Branding
-        subject: 'CareConnect Healthcare Consultation',
+        subject: 'TunzaConnect Healthcare Consultation',
         hideConferenceSubject: false,
         hideConferenceTimer: false,
         conferenceInfo: {
@@ -204,8 +204,8 @@ module.exports = {
 
       // ========== Interface Configuration ==========
       interfaceConfigOverwrite: {
-        // Branding - CareConnect Healthcare
-        APP_NAME: 'CareConnect',
+        // Branding - TunzaConnect Healthcare
+        APP_NAME: 'TunzaConnect Healthcare',
         BRAND_WATERMARK_LINK: '',
         DEFAULT_BACKGROUND: '#047857',        // Healthcare green
         DEFAULT_LOCAL_DISPLAY_NAME: 'Me',
@@ -259,8 +259,8 @@ module.exports = {
         UNSUPPORTED_BROWSERS: [],
 
         // Provider Info
-        PROVIDER_NAME: 'CareConnect Healthcare',
-        NATIVE_APP_NAME: 'CareConnect',
+        PROVIDER_NAME: 'TunzaConnect Healthcare',
+        NATIVE_APP_NAME: 'TunzaConnect',
 
         // Recording UI
         HIDE_RECORDING_LABEL: false,

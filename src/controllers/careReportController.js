@@ -143,7 +143,7 @@ const createOrUpdateCareReport = async (req, res, next) => {
                 walletBalance: parseFloat(earnings.walletBalance) + unlockAmount
               }, { transaction: t });
               await t.commit();
-              console.log(`Unlocked ${unlockAmount} MWK for caregiver ${caregiver.id} (report for appointment ${appointmentId})`);
+              console.log(`Unlocked ${unlockAmount} Ksh for caregiver ${caregiver.id} (report for appointment ${appointmentId})`);
             } else {
               await t.rollback();
               console.log(`No locked balance to unlock for caregiver ${caregiver.id}, appointment ${appointmentId}`);

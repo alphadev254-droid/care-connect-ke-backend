@@ -102,8 +102,8 @@ class NotificationHelper {
     if (paymentData.patientId) {
       const title = paymentData.status === 'completed' ? 'Payment Successful' : 'Payment Failed';
       const message = paymentData.status === 'completed'
-        ? `Your payment of MWK ${paymentData.amount} has been processed successfully`
-        : `Your payment of MWK ${paymentData.amount} could not be processed. Please try again.`;
+        ? `Your payment of Ksh ${paymentData.amount} has been processed successfully`
+        : `Your payment of Ksh ${paymentData.amount} could not be processed. Please try again.`;
 
       notifications.push({
         userId: paymentData.patientId,
@@ -121,7 +121,7 @@ class NotificationHelper {
       notifications.push({
         userId: paymentData.caregiverId,
         title: 'Payment Received',
-        message: `You have received MWK ${paymentData.caregiverEarnings} for your completed session`,
+        message: `You have received Ksh ${paymentData.caregiverEarnings} for your completed session`,
         type: 'payment',
         priority: 'medium',
         relatedId: paymentData.id,
@@ -144,7 +144,7 @@ class NotificationHelper {
           notifications.push({
             userId: accountant.id,
             title: 'Session Payment Completed',
-            message: `Session fee payment of MWK ${paymentData.amount} completed in ${paymentData.region || 'system'}`,
+            message: `Session fee payment of Ksh ${paymentData.amount} completed in ${paymentData.region || 'system'}`,
             type: 'payment',
             priority: 'low',
             region: paymentData.region,
