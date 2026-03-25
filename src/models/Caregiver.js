@@ -4,12 +4,12 @@ const { VERIFICATION_STATUS } = require('../utils/constants');
 
 const Caregiver = sequelize.define('Caregiver', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   userId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'users', key: 'id' }
   },
@@ -52,8 +52,7 @@ const Caregiver = sequelize.define('Caregiver', {
     type: DataTypes.JSON
   },
   idDocuments: {
-    type: DataTypes.JSON,
-    comment: 'ID documents uploaded during registration'
+    type: DataTypes.JSON
   },
   appointmentDuration: {
     type: DataTypes.INTEGER,
@@ -77,16 +76,11 @@ const Caregiver = sequelize.define('Caregiver', {
     type: DataTypes.JSON,
     allowNull: true,
     field: 'traditional_authority',
-    comment: 'Array of Traditional Authorities the caregiver serves',
     get() {
       const value = this.getDataValue('traditionalAuthority');
       if (!value) return [];
       if (typeof value === 'string') {
-        try {
-          return JSON.parse(value);
-        } catch {
-          return [value]; // Convert legacy single value to array
-        }
+        try { return JSON.parse(value); } catch { return [value]; }
       }
       return Array.isArray(value) ? value : [value];
     }
@@ -94,16 +88,11 @@ const Caregiver = sequelize.define('Caregiver', {
   village: {
     type: DataTypes.JSON,
     allowNull: true,
-    comment: 'Array of Villages the caregiver serves',
     get() {
       const value = this.getDataValue('village');
       if (!value) return [];
       if (typeof value === 'string') {
-        try {
-          return JSON.parse(value);
-        } catch {
-          return [value]; // Convert legacy single value to array
-        }
+        try { return JSON.parse(value); } catch { return [value]; }
       }
       return Array.isArray(value) ? value : [value];
     }
@@ -111,7 +100,7 @@ const Caregiver = sequelize.define('Caregiver', {
   referralBoostScore: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
-    comment: 'Boost score from successful referrals (1 point per converted referral)'
+    comment: 'Boost score from successful referrals'
   },
   referralCount: {
     type: DataTypes.INTEGER,

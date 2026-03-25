@@ -3,12 +3,12 @@ const sequelize = require('../config/database');
 
 const CaregiverEarnings = sequelize.define('CaregiverEarnings', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   caregiverId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     unique: true,
     field: 'caregiver_id',
@@ -18,22 +18,13 @@ const CaregiverEarnings = sequelize.define('CaregiverEarnings', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
     defaultValue: 0.00,
-    field: 'total_caregiver_earnings',
-    comment: 'Lifetime total earnings (only increases)'
+    field: 'total_caregiver_earnings'
   },
   walletBalance: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
     defaultValue: 0.00,
-    field: 'wallet_balance',
-    comment: 'Current available balance for withdrawal'
-  },
-  lockedBalance: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    defaultValue: 0.00,
-    field: 'locked_balance',
-    comment: 'Earnings locked pending care report submission'
+    field: 'wallet_balance'
   }
 }, {
   tableName: 'caregiver_earnings',

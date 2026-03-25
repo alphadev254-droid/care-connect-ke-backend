@@ -1,29 +1,16 @@
 const { User, Patient, Caregiver, PrimaryPhysician, Role, UserSettings } = require('../models');
 const { sanitizeUser } = require('../utils/helpers');
 
+const USER_INCLUDE = [
+  { model: Role, attributes: ['name'] },
+  { model: Patient, required: false, attributes: { exclude: ['medicalHistory', 'currentMedications', 'allergies'] } },
+  { model: Caregiver, required: false, attributes: { include: ['profileImage', 'idDocuments', 'supportingDocuments'] } },
+  { model: PrimaryPhysician, required: false }
+];
+
 const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findByPk(req.user.id, {
-      include: [
-        { model: Role, attributes: ['name'] },
-        { 
-          model: Patient, 
-          required: false,
-          attributes: {
-            exclude: ['medicalHistory', 'currentMedications', 'allergies'] // Remove medical info
-          }
-        },
-        { 
-          model: Caregiver, 
-          required: false,
-          attributes: {
-            include: ['profileImage', 'idDocuments', 'supportingDocuments'] // Include file fields
-          }
-        },
-        { model: PrimaryPhysician, required: false }
-      ]
-    });
-
+    const user = await User.findByPk(req.user.id, { include: USER_INCLUDE });
     res.json({ user: sanitizeUser(user) });
   } catch (error) {
     next(error);
@@ -107,44 +94,24 @@ const updateProfile = async (req, res, next) => {
       if (district) caregiverData.district = district;
       if (traditionalAuthority) caregiverData.traditionalAuthority = traditionalAuthority;
       if (village) caregiverData.village = village;
-      
       await user.Caregiver.update(caregiverData);
-      
-      // Handle profile image upload
-      if (uploadedFiles.profileImage) {
-        try {
-          const { uploadToCloudinary } = require('../services/cloudinaryService');
-          const uploadResult = await uploadToCloudinary(uploadedFiles.profileImage[0], 'caregiver-profiles');
-          await user.Caregiver.update({
-            profileImage: uploadResult.url
-          });
-        } catch (uploadError) {
-          console.error('Profile image upload failed:', uploadError);
-        }
+    }
+
+    // Handle profile image upload for ALL roles
+    if (uploadedFiles.profileImage) {
+      try {
+        const { uploadToCloudinary } = require('../services/cloudinaryService');
+        const uploadResult = await uploadToCloudinary(uploadedFiles.profileImage[0], 'profile-images');
+        await user.update({ profileImage: uploadResult.url });
+      } catch (uploadError) {
+        console.error('Profile image upload failed:', uploadError);
       }
+    } else if (req.body.removeProfileImage === 'true') {
+      await user.update({ profileImage: null });
     }
 
     // Fetch updated user with all associations
-    const updatedUser = await User.findByPk(req.user.id, {
-      include: [
-        { model: Role, attributes: ['name'] },
-        { 
-          model: Patient, 
-          required: false,
-          attributes: {
-            exclude: ['medicalHistory', 'currentMedications', 'allergies']
-          }
-        },
-        { 
-          model: Caregiver, 
-          required: false,
-          attributes: {
-            include: ['profileImage', 'idDocuments', 'supportingDocuments']
-          }
-        },
-        { model: PrimaryPhysician, required: false }
-      ]
-    });
+    const updatedUser = await User.findByPk(req.user.id, { include: USER_INCLUDE });
 
     res.json({ user: sanitizeUser(updatedUser) });
   } catch (error) {

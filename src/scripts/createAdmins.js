@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 const bcrypt = require('bcryptjs');
 const { User, Role } = require('../models');
 const { bcryptRounds } = require('../config/auth');
@@ -7,7 +8,7 @@ const createAdminUsers = async () => {
     // Create System Manager
     const systemManagerRole = await Role.findOne({ where: { name: 'system_manager' } });
 
-    if (!systemManagerRole || !regionalManagerRole) {
+    if (!systemManagerRole) {
       console.error('Admin roles not found. Please run migrations first.');
       return;
     }

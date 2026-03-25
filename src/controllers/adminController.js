@@ -41,13 +41,13 @@ const verifyCaregiver = async (req, res, next) => {
     }
 
     // Update caregiver verification status
-    await user.Caregiver.update({ verificationStatus: 'APPROVED' });
+    await user.Caregiver.update({ verificationStatus: 'verified' });
     
     // Create notification for caregiver verification
     try {
       await NotificationHelper.createCaregiverVerificationNotifications(
         user.id, 
-        'APPROVED', 
+        'verified', 
         user.Caregiver.region
       );
     } catch (notificationError) {
@@ -157,8 +157,34 @@ const getAllUsers = async (req, res, next) => {
       search, 
       role, 
       specialty, 
-      status 
+      status,
+      slim
     } = req.query;
+
+    // slim=true: dashboard only needs id, firstName, lastName, isActive, Role.name
+    if (slim === 'true') {
+      const { Op } = require('sequelize');
+      const { count, rows: users } = await User.findAndCountAll({
+        attributes: ['id', 'firstName', 'lastName', 'isActive'],
+        include: [{ model: Role, attributes: ['id', 'name'], required: true }],
+        order: [['createdAt', 'DESC']],
+        limit: parseInt(limit),
+        offset: (parseInt(page) - 1) * parseInt(limit)
+      });
+      return res.json({
+        users: users.map(u => ({
+          id: u.id,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          isActive: u.isActive,
+          Role: { name: u.Role?.name }
+        })),
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / parseInt(limit))
+      });
+    }
     
     const { Specialty, sequelize, Patient, Caregiver } = require('../models');
     const { Op } = require('sequelize');

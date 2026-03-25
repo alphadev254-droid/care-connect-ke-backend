@@ -8,24 +8,14 @@ const getCaregivers = async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     let whereClause = {};
-    let userWhereClause = { isActive: true }; // Only active users
-    
-    if (verified === 'true') {
-      whereClause.verificationStatus = 'APPROVED'; // Only approved caregivers
-    }
+    let userWhereClause = { isActive: true };
+    if (verified === 'true') whereClause.verificationStatus = 'verified';
 
     let includeClause = [
-      { 
-        model: User, 
-        where: userWhereClause,
-        required: true 
-      },
+      { model: User, where: userWhereClause, required: true },
       { model: Specialty, through: { attributes: [] } }
     ];
-
-    if (specialtyId) {
-      includeClause[1].where = { id: specialtyId };
-    }
+    if (specialtyId) includeClause[1].where = { id: specialtyId };
 
     const caregivers = await Caregiver.findAndCountAll({
       where: whereClause,
@@ -35,74 +25,61 @@ const getCaregivers = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
-    // Add availability information if requested
+    const ids = caregivers.rows.map(c => c.id);
+
+    // Single bulk ratings query for all caregivers
+    const allRatings = ids.length ? await Appointment.findAll({
+      where: { caregiverId: { [Op.in]: ids }, patient_rating: { [Op.not]: null } },
+      attributes: [
+        'caregiverId',
+        [sequelize.fn('AVG', sequelize.col('patient_rating')), 'averageRating'],
+        [sequelize.fn('COUNT', sequelize.col('patient_rating')), 'totalRatings']
+      ],
+      group: ['caregiverId'],
+      raw: true
+    }) : [];
+    const ratingsMap = {};
+    allRatings.forEach(r => { ratingsMap[r.caregiverId] = r; });
+
     if (includeAvailability === 'true') {
-      const caregiversWithAvailability = await Promise.all(
-        caregivers.rows.map(async (caregiver) => {
-          const availableSlots = await TimeSlot.count({
-            where: {
-              caregiverId: caregiver.id,
-              status: TIMESLOT_STATUS.AVAILABLE,
-              date: { [Op.gte]: new Date().toISOString().split('T')[0] }
-            }
-          });
-          
-          // Get rating statistics
-          const ratingStats = await Appointment.findAll({
-            where: {
-              caregiverId: caregiver.id,
-              patient_rating: { [Op.not]: null }
-            },
-            attributes: [
-              [sequelize.fn('AVG', sequelize.col('patient_rating')), 'averageRating'],
-              [sequelize.fn('COUNT', sequelize.col('patient_rating')), 'totalRatings']
-            ],
-            raw: true
-          });
-          
-          return {
-            ...caregiver.toJSON(),
-            hasAvailableSlots: availableSlots > 0,
-            availableSlotsCount: availableSlots,
-            averageRating: ratingStats[0]?.averageRating ? parseFloat(ratingStats[0].averageRating).toFixed(1) : null,
-            totalRatings: parseInt(ratingStats[0]?.totalRatings) || 0
-          };
-        })
-      );
-      
+      // Single bulk slots count query for all caregivers
+      const today = new Date().toISOString().split('T')[0];
+      const allSlots = ids.length ? await TimeSlot.findAll({
+        where: { caregiverId: { [Op.in]: ids }, status: TIMESLOT_STATUS.AVAILABLE, date: { [Op.gte]: today } },
+        attributes: ['caregiverId', [sequelize.fn('COUNT', sequelize.col('id')), 'slotCount']],
+        group: ['caregiverId'],
+        raw: true
+      }) : [];
+      const slotsMap = {};
+      allSlots.forEach(s => { slotsMap[s.caregiverId] = parseInt(s.slotCount) || 0; });
+
       return res.json({
-        caregivers: caregiversWithAvailability,
+        caregivers: caregivers.rows.map(c => {
+          const r = ratingsMap[c.id];
+          const count = slotsMap[c.id] || 0;
+          return {
+            ...c.toJSON(),
+            hasAvailableSlots: count > 0,
+            availableSlotsCount: count,
+            averageRating: r?.averageRating ? parseFloat(r.averageRating).toFixed(1) : null,
+            totalRatings: parseInt(r?.totalRatings) || 0
+          };
+        }),
         total: caregivers.count,
         page: parseInt(page),
         totalPages: Math.ceil(caregivers.count / limit)
       });
     }
 
-    // Add rating statistics for regular response
-    const caregiversWithRatings = await Promise.all(
-      caregivers.rows.map(async (caregiver) => {
-        const ratingStats = await Appointment.findAll({
-          where: {
-            caregiverId: caregiver.id,
-            patient_rating: { [Op.not]: null }
-          },
-          attributes: [
-            [sequelize.fn('AVG', sequelize.col('patient_rating')), 'averageRating'],
-            [sequelize.fn('COUNT', sequelize.col('patient_rating')), 'totalRatings']
-          ],
-          raw: true
-        });
-        
-        return {
-          ...caregiver.toJSON(),
-          averageRating: ratingStats[0]?.averageRating ? parseFloat(ratingStats[0].averageRating).toFixed(1) : null,
-          totalRatings: parseInt(ratingStats[0]?.totalRatings) || 0
-        };
-      })
-    );
-
     res.json({
-      caregivers: caregiversWithRatings,
+      caregivers: caregivers.rows.map(c => {
+        const r = ratingsMap[c.id];
+        return {
+          ...c.toJSON(),
+          averageRating: r?.averageRating ? parseFloat(r.averageRating).toFixed(1) : null,
+          totalRatings: parseInt(r?.totalRatings) || 0
+        };
+      }),
       total: caregivers.count,
       page: parseInt(page),
       totalPages: Math.ceil(caregivers.count / limit)
@@ -116,7 +93,7 @@ const getCaregiverById = async (req, res, next) => {
   try {
     const caregiver = await Caregiver.findByPk(req.params.id, {
       where: {
-        verificationStatus: 'APPROVED' // Only approved caregivers
+        verificationStatus: 'verified'
       },
       include: [
         { 

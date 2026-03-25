@@ -22,8 +22,8 @@ const PendingPaymentTransaction = require('./PendingPaymentTransaction');
 const EmailQueue = require('./EmailQueue');
 const Notification = require('./Notification');
 const CaregiverEarnings = require('./CaregiverEarnings');
-const WithdrawalRequest = require('./WithdrawalRequest');
-const WithdrawalToken = require('./WithdrawalToken');
+const PaystackSubaccount = require('./PaystackSubaccount');
+const Settlement = require('./Settlement');
 const Referral = require('./Referral');
 
 // Define associations
@@ -134,13 +134,13 @@ Notification.belongsTo(User, { foreignKey: 'userId' });
 Caregiver.hasOne(CaregiverEarnings, { foreignKey: 'caregiverId' });
 CaregiverEarnings.belongsTo(Caregiver, { foreignKey: 'caregiverId' });
 
-// WithdrawalRequest associations
-Caregiver.hasMany(WithdrawalRequest, { foreignKey: 'caregiverId' });
-WithdrawalRequest.belongsTo(Caregiver, { foreignKey: 'caregiverId' });
+// PaystackSubaccount associations
+Caregiver.hasOne(PaystackSubaccount, { foreignKey: 'caregiverId' });
+PaystackSubaccount.belongsTo(Caregiver, { foreignKey: 'caregiverId' });
 
-// WithdrawalToken associations
-Caregiver.hasMany(WithdrawalToken, { foreignKey: 'caregiverId' });
-WithdrawalToken.belongsTo(Caregiver, { foreignKey: 'caregiverId' });
+// Settlement associations
+Caregiver.hasMany(Settlement, { foreignKey: 'caregiverId' });
+Settlement.belongsTo(Caregiver, { foreignKey: 'caregiverId' });
 
 // Referral associations
 Caregiver.hasMany(Referral, { foreignKey: 'caregiverId', as: 'Referrals' });
@@ -178,7 +178,7 @@ module.exports = {
   EmailQueue,
   Notification,
   CaregiverEarnings,
-  WithdrawalRequest,
-  WithdrawalToken,
+  PaystackSubaccount,
+  Settlement,
   Referral
 };

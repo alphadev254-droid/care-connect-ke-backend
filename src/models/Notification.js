@@ -3,12 +3,12 @@ const sequelize = require('../config/database');
 
 const Notification = sequelize.define('Notification', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   userId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'users', key: 'id' }
   },
@@ -34,7 +34,7 @@ const Notification = sequelize.define('Notification', {
     defaultValue: 'medium'
   },
   relatedId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: true
   },
   relatedType: {

@@ -5,14 +5,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "db:migrate": "node src/scripts/migrate.js",
-    "db:seed": "node src/scripts/seed.js",
-    "db:init": "node src/scripts/initDb.js",
-    "db:migrate-booking": "node src/scripts/runMigration.js",
-    "db:migrate-safe": "node -e \"require('./src/scripts/safeMigration')().then(() => process.exit(0)).catch(e => {console.error(e); process.exit(1)})\"",
-    "populate-locations": "node src/scripts/populateLocations.js",
-    "add-location-fields": "node src/scripts/addLocationFields.js",
-    "add-cancellation-fields": "node src/scripts/addCancellationFields.js"
+    "db:seed": "node src/scripts/seed.js"
   },
   "keywords": [],
   "author": "",
@@ -25,9 +18,11 @@
     "cloudinary": "^2.8.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "cron": "^4.4.0",
     "csv-parser": "^3.2.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
     "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
@@ -42,7 +37,8 @@
     "socket.io": "^4.8.1",
     "stripe": "^20.0.0",
     "twilio": "^5.10.7",
-    "winston": "^3.19.0"
+    "winston": "^3.19.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^24.10.2",

@@ -1,6 +1,6 @@
 const express = require('express');
 const { sanitizeUser } = require('../utils/helpers');
-const { Op, sequelize } = require('sequelize');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -21,7 +21,7 @@ router.get('/specialties', async (req, res, next) => {
             INNER JOIN caregiverspecialties cs ON c.id = cs.caregiverId
             INNER JOIN users u ON c.userId = u.id
             WHERE cs.specialtyId = Specialty.id
-            AND c.verificationStatus = 'APPROVED'
+            AND c.verificationStatus = 'verified'
             AND u.isActive = 1
           )`),
           'caregiverCount'
@@ -37,7 +37,7 @@ router.get('/specialties', async (req, res, next) => {
       include: [{
         model: Caregiver,
         required: true,
-        where: { verificationStatus: 'APPROVED' }
+        where: { verificationStatus: 'verified' }
       }]
     });
 
@@ -99,7 +99,7 @@ router.get('/caregivers', async (req, res, next) => {
 
     // Build where clause for Caregiver (location filters + verification status)
     let caregiverWhereClause = {
-      verificationStatus: 'APPROVED' // Only show approved caregivers to public
+      verificationStatus: 'verified' // Only show verified caregivers to public
     };
 
     if (region) {
@@ -184,31 +184,36 @@ router.get('/caregivers', async (req, res, next) => {
       subQuery: false
     });
 
-    // Return optimized data structure
-    const formattedCaregivers = await Promise.all(caregivers.map(async (user) => {
+    // Fetch all ratings in one query instead of N+1 per caregiver
+    const caregiverIds = caregivers.map(u => u.toJSON().Caregiver?.id).filter(Boolean);
+    let ratingsMap = {};
+    if (caregiverIds.length > 0) {
+      const { Appointment } = require('../models');
+      const allRatings = await Appointment.findAll({
+        where: {
+          caregiverId: { [Op.in]: caregiverIds },
+          patient_rating: { [Op.not]: null }
+        },
+        attributes: [
+          'caregiverId',
+          [sequelize.fn('AVG', sequelize.col('patient_rating')), 'averageRating'],
+          [sequelize.fn('COUNT', sequelize.col('patient_rating')), 'totalRatings']
+        ],
+        group: ['caregiverId'],
+        raw: true
+      });
+      allRatings.forEach(r => { ratingsMap[r.caregiverId] = r; });
+    }
+
+    const formattedCaregivers = caregivers.map(user => {
       const userData = user.toJSON();
-      
-      // Add rating data if caregiver exists
       if (userData.Caregiver) {
-        const { Appointment } = require('../models');
-        const ratingStats = await Appointment.findAll({
-          where: {
-            caregiverId: userData.Caregiver.id,
-            patient_rating: { [Op.not]: null }
-          },
-          attributes: [
-            [sequelize.fn('AVG', sequelize.col('patient_rating')), 'averageRating'],
-            [sequelize.fn('COUNT', sequelize.col('patient_rating')), 'totalRatings']
-          ],
-          raw: true
-        });
-        
-        userData.Caregiver.averageRating = ratingStats[0]?.averageRating ? parseFloat(ratingStats[0].averageRating).toFixed(1) : null;
-        userData.Caregiver.totalRatings = parseInt(ratingStats[0]?.totalRatings) || 0;
+        const r = ratingsMap[userData.Caregiver.id];
+        userData.Caregiver.averageRating = r?.averageRating ? parseFloat(r.averageRating).toFixed(1) : null;
+        userData.Caregiver.totalRatings = parseInt(r?.totalRatings) || 0;
       }
-      
       return userData;
-    }));
+    });
 
     res.json({
       success: true,
@@ -218,6 +223,39 @@ router.get('/caregivers', async (req, res, next) => {
         page: parseInt(page),
         totalPages: Math.ceil(count / parseInt(limit))
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get platform stats for landing page
+router.get('/stats', async (req, res, next) => {
+  try {
+    const { User, Role, Caregiver, Appointment, sequelize } = require('../models');
+
+    const caregiverRole = await Role.findOne({ where: { name: 'caregiver' } });
+    const patientRole = await Role.findOne({ where: { name: 'patient' } });
+
+    const [caregivers, patients, ratingStats] = await Promise.all([
+      User.count({
+        where: { role_id: caregiverRole?.id, isActive: true },
+        include: [{ model: Caregiver, required: true, where: { verificationStatus: 'verified' } }]
+      }),
+      User.count({ where: { role_id: patientRole?.id, isActive: true } }),
+      Appointment.findAll({
+        where: { patient_rating: { [Op.not]: null } },
+        attributes: [[sequelize.fn('AVG', sequelize.col('patient_rating')), 'averageRating']],
+        raw: true
+      })
+    ]);
+
+    res.json({
+      caregivers,
+      patients,
+      averageRating: ratingStats[0]?.averageRating
+        ? parseFloat(ratingStats[0].averageRating).toFixed(1)
+        : '4.9'
     });
   } catch (error) {
     next(error);

@@ -57,11 +57,9 @@ const getSpecialties = async (req, res, next) => {
       order: [['name', 'ASC']]
     });
 
-    // Add convenience fee percentage and tax rate to all specialties
     const specialtiesWithConvenience = specialties.map(s => ({
       ...s.toJSON(),
-      convenienceFeePercentage: paymentConfig.paychangu.convenienceFeePercentage,
-      taxRate: paymentConfig.paychangu.taxRate
+      convenienceFeePercentage: paymentConfig.paystack.convenienceFeePercentage
     }));
 
     res.json({
@@ -87,12 +85,9 @@ const getSpecialtyById = async (req, res, next) => {
       });
     }
 
-    // Add convenience fee percentage and tax rate from payment config
-    const paymentConfig = require('../config/payment');
     const specialtyWithConvenience = {
       ...specialty.toJSON(),
-      convenienceFeePercentage: paymentConfig.paychangu.convenienceFeePercentage,
-      taxRate: paymentConfig.paychangu.taxRate
+      convenienceFeePercentage: paymentConfig.paystack.convenienceFeePercentage
     };
 
     res.json({

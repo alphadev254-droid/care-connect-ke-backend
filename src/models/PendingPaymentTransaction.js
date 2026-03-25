@@ -4,18 +4,18 @@ const { PAYMENT_STATUS } = require('../utils/constants');
 
 const PendingPaymentTransaction = sequelize.define('PendingPaymentTransaction', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   pendingBookingId: {
-    type: DataTypes.INTEGER,
-    allowNull: true, // Allow null for session fee payments
+    type: DataTypes.UUID,
+    allowNull: true,
     references: { model: 'pending_bookings', key: 'id' }
   },
   appointmentId: {
-    type: DataTypes.INTEGER,
-    allowNull: true, // For session fee payments
+    type: DataTypes.UUID,
+    allowNull: true,
     references: { model: 'appointments', key: 'id' }
   },
   amount: {
@@ -29,12 +29,12 @@ const PendingPaymentTransaction = sequelize.define('PendingPaymentTransaction', 
   },
   currency: {
     type: DataTypes.STRING,
-    defaultValue: 'MWK'
+    defaultValue: 'KES'
   },
   paymentMethod: {
     type: DataTypes.STRING,
     allowNull: false,
-    defaultValue: 'paychangu'
+    defaultValue: 'paystack'
   },
   tx_ref: {
     type: DataTypes.STRING,
@@ -53,7 +53,7 @@ const PendingPaymentTransaction = sequelize.define('PendingPaymentTransaction', 
     type: DataTypes.JSON
   },
   convertedToPaymentId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: true,
     comment: 'ID of PaymentTransaction after conversion'
   }

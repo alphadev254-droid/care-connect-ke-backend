@@ -3,53 +3,45 @@ const sequelize = require('../config/database');
 
 const Referral = sequelize.define('Referral', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   caregiverId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
-    references: { model: 'caregivers', key: 'id' },
-    comment: 'The caregiver who created this referral'
+    references: { model: 'caregivers', key: 'id' }
   },
   referralCode: {
     type: DataTypes.STRING(10),
     allowNull: false,
-    unique: true,
-    comment: 'Unique referral code (e.g., CARE7X9K2L)'
+    unique: true
   },
   patientId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: true,
-    references: { model: 'patients', key: 'id' },
-    comment: 'The patient who used this referral code (null until conversion)'
+    references: { model: 'patients', key: 'id' }
   },
   referredCaregiverId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: true,
-    references: { model: 'caregivers', key: 'id' },
-    comment: 'The caregiver who used this referral code (null until conversion)'
+    references: { model: 'caregivers', key: 'id' }
   },
   referralType: {
     type: DataTypes.ENUM('patient', 'caregiver'),
-    allowNull: true,
-    comment: 'Type of referral: patient or caregiver'
+    allowNull: true
   },
   status: {
     type: DataTypes.ENUM('pending', 'converted', 'cancelled'),
-    defaultValue: 'pending',
-    comment: 'pending: link shared, converted: patient/caregiver registered, cancelled: account deleted'
+    defaultValue: 'pending'
   },
   convertedAt: {
     type: DataTypes.DATE,
-    allowNull: true,
-    comment: 'When the referral converted (patient completed registration)'
+    allowNull: true
   },
   expiresAt: {
     type: DataTypes.DATE,
-    allowNull: true,
-    comment: 'Optional expiration date for referral codes'
+    allowNull: true
   }
 }, {
   tableName: 'referrals',

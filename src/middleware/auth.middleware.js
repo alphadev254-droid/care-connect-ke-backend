@@ -3,7 +3,8 @@ const { jwtSecret } = require('../config/auth');
 const { User } = require('../models');
 
 const authenticateToken = async (req, res, next) => {
-  const token = req.cookies.token;
+  const token = req.cookies.token ||
+    (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });

@@ -1,41 +1,52 @@
-const { v2: cloudinary } = require('cloudinary');
+const fs = require('fs');
+const path = require('path');
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.CLOUD_API_KEY,
-  api_secret: process.env.CLOUD_API_SECRET,
-});
+const getBaseUrl = () => process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
+
+/**
+ * "Uploads" a file by moving it from the temp multer path to the uploads folder
+ * and returning a local URL. Keeps the same signature as the old Cloudinary version.
+ */
+const SUBFOLDER_MAP = {
+  profilePicture: 'profile-images',
+  profileImage:   'profile-images',
+  idDocuments:    'id-documents',
+  supportingDocuments: 'supporting-documents',
+};
 
 const uploadToCloudinary = async (file, folder = 'caregiver-documents') => {
   try {
-    const result = await cloudinary.uploader.upload(file.path, {
-      folder: folder,
-      resource_type: 'auto', // Handles images, videos, and raw files (PDFs, docs)
-      public_id: `${Date.now()}-${file.originalname}`,
-    });
-    
+    // Multer already saved the file to the correct subfolder via diskStorage
+    const sub = SUBFOLDER_MAP[file.fieldname] || 'other';
+    const filename = path.basename(file.path);
+    const ext = path.extname(file.originalname).replace('.', '') || 'bin';
+    const url = `${getBaseUrl()}/uploads/${sub}/${filename}`;
+
     return {
-      url: result.secure_url,
-      public_id: result.public_id,
-      format: result.format,
-      resource_type: result.resource_type,
+      url,
+      public_id: `${sub}/${filename}`,
+      format: ext,
+      resource_type: file.mimetype?.startsWith('image/') ? 'image' : 'raw',
     };
   } catch (error) {
-    console.error('Cloudinary upload error:', error);
-    throw new Error('Failed to upload file to cloud storage');
+    console.error('Local upload error:', error);
+    throw new Error('Failed to process uploaded file');
   }
 };
 
+/**
+ * Deletes a locally stored file by its public_id (filename).
+ */
 const deleteFromCloudinary = async (public_id) => {
   try {
-    await cloudinary.uploader.destroy(public_id);
+    // public_id is now "subfolder/filename" e.g. "profile-images/profilePicture-123.jpg"
+    const filePath = path.resolve(__dirname, '../../uploads', public_id);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   } catch (error) {
-    console.error('Cloudinary delete error:', error);
+    console.error('Local file delete error:', error);
   }
 };
 
-module.exports = {
-  uploadToCloudinary,
-  deleteFromCloudinary,
-};
+module.exports = { uploadToCloudinary, deleteFromCloudinary };

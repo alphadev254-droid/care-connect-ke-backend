@@ -106,44 +106,55 @@ const createAppointment = async (req, res, next) => {
 
 const getAppointments = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
-    const offset = (page - 1) * limit;
+    const { page = 1, limit = 50, status } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
     let whereClause = {};
-    
+    if (status) whereClause.status = status;
+
+    // Build includes — filter by userId directly inside the join, no pre-lookup needed
+    const patientInclude = {
+      model: Patient,
+      attributes: ['id'],
+      include: [{ model: User, attributes: ['firstName', 'lastName', 'email', 'phone'] }]
+    };
+    const caregiverInclude = {
+      model: Caregiver,
+      attributes: ['id', 'region', 'district', 'traditionalAuthority', 'village'],
+      include: [{ model: User, attributes: ['firstName', 'lastName', 'email', 'phone'] }]
+    };
+
     if (req.user.role === USER_ROLES.PATIENT) {
-      const patient = await Patient.findOne({ where: { userId: req.user.id } });
-      whereClause.patientId = patient.id;
+      patientInclude.where = { userId: req.user.id };
+      patientInclude.required = true;
     } else if (req.user.role === USER_ROLES.CAREGIVER) {
-      const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
-      whereClause.caregiverId = caregiver.id;
-      // Show appointments where at least booking fee is paid
+      caregiverInclude.where = { userId: req.user.id };
+      caregiverInclude.required = true;
       whereClause.bookingFeeStatus = PAYMENT_STATUS.COMPLETED;
     }
 
-    if (status) {
-      whereClause.status = status;
-    }
-
-    const appointments = await Appointment.findAndCountAll({
+    const appointments = await Appointment.findAll({
       where: whereClause,
+      attributes: [
+        'id', 'status', 'scheduledDate', 'sessionType', 'notes',
+        'totalCost', 'bookingFee', 'sessionFee',
+        'bookingFeeStatus', 'sessionFeeStatus', 'paymentStatus',
+        'rescheduleCount', 'jitsiRoomName', 'patientMeetingToken', 'caregiverMeetingToken',
+        'patientId', 'caregiverId', 'specialtyId', 'timeSlotId'
+      ],
       include: [
-        { model: Patient, include: [{ model: User }] },
-        { model: Caregiver, include: [{ model: User }] },
-        { model: Specialty },
-        { model: TimeSlot }
+        patientInclude,
+        caregiverInclude,
+        { model: Specialty, attributes: ['id', 'name', 'sessionFee', 'bookingFee'] },
+        { model: TimeSlot, attributes: ['id', 'date', 'startTime', 'endTime', 'duration'] }
       ],
       limit: parseInt(limit),
-      offset: parseInt(offset),
-      order: [['scheduledDate', 'DESC']]
+      offset,
+      order: [['scheduledDate', 'DESC']],
+      subQuery: false
     });
 
-    res.json({
-      appointments: appointments.rows,
-      total: appointments.count,
-      page: parseInt(page),
-      totalPages: Math.ceil(appointments.count / limit)
-    });
+    res.json({ appointments: appointments.map(a => a.toJSON()), total: appointments.length, page: parseInt(page) });
   } catch (error) {
     next(error);
   }

@@ -577,7 +577,7 @@ router.get('/caregivers/:caregiverId/appointments', requirePermission('view_care
         {
           model: PaymentTransaction,
           required: false,
-          attributes: ['id', 'amount', 'status', 'stripePaymentIntentId', 'createdAt']
+          attributes: ['id', 'amount', 'status', 'paystackReference', 'createdAt']
         }
       ],
       order: [['scheduledDate', 'DESC']]

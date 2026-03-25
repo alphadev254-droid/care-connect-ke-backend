@@ -3,9 +3,9 @@ const sequelize = require('../config/database');
 
 const Permission = sequelize.define('Permission', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   name: {
     type: DataTypes.STRING,

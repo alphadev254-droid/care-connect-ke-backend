@@ -3,9 +3,9 @@ const sequelize = require('../config/database');
 
 const Specialty = sequelize.define('Specialty', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   name: {
     type: DataTypes.STRING,

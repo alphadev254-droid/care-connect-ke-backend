@@ -1,9 +1,22 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
+const SUBFOLDER_MAP = {
+  profilePicture: 'profile-images',
+  profileImage:   'profile-images',
+  idDocuments:    'id-documents',
+  supportingDocuments: 'supporting-documents',
+};
+
+const BASE_UPLOADS = path.resolve(__dirname, '../../uploads');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, process.env.UPLOAD_PATH || './uploads');
+    const sub = SUBFOLDER_MAP[file.fieldname] || 'other';
+    const dir = path.join(BASE_UPLOADS, sub);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

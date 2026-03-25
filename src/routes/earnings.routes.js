@@ -11,7 +11,7 @@ router.use(authenticateToken);
 // Get earnings for admin (all platform earnings)
 router.get('/admin', requirePermission('view_financial_reports'), async (req, res, next) => {
   try {
-    const { period = 'this-month', caregiverId, region, district, traditionalAuthority, village, patientSearch, startDate, endDate, page = 1, limit = 100 } = req.query;
+    const { period = 'this-month', caregiverId, region, district, traditionalAuthority, village, patientSearch, startDate, endDate, page = 1, limit = 100, summary } = req.query;
     
     // Check if user has permission and role
     if (!['system_manager', 'regional_manager', 'Accountant'].includes(req.user.role)) {
@@ -21,96 +21,91 @@ router.get('/admin', requirePermission('view_financial_reports'), async (req, re
     // Get user's assigned region for filtering
     let userRegionFilter = null;
     if (req.user.role === 'regional_manager' || req.user.role === 'Accountant') {
-      // Get user's assigned region from their profile
-      const userProfile = req.user.role === 'regional_manager' 
-        ? await User.findByPk(req.user.id, { attributes: ['assignedRegion'] })
-        : await User.findByPk(req.user.id, { attributes: ['assignedRegion'] });
-      
+      const userProfile = await User.findByPk(req.user.id, { attributes: ['assignedRegion'] });
       if (userProfile?.assignedRegion && userProfile.assignedRegion !== 'all') {
         userRegionFilter = userProfile.assignedRegion;
       }
     }
 
-    // Get date range based on period or custom dates
+    // Get date range
     const now = new Date();
     let dateStart, dateEnd;
-    
     if (period === 'custom' && startDate && endDate) {
       dateStart = new Date(startDate);
       dateEnd = new Date(endDate);
-      dateEnd.setHours(23, 59, 59, 999); // End of day
+      dateEnd.setHours(23, 59, 59, 999);
     } else {
       switch (period) {
-        case 'this-week':
-          dateStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-          break;
-        case 'this-month':
-          dateStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          break;
+        case 'this-week':  dateStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()); break;
+        case 'this-month': dateStart = new Date(now.getFullYear(), now.getMonth(), 1); break;
         case 'last-month':
           dateStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          dateEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+          dateEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
           break;
-        case 'this-year':
-          dateStart = new Date(now.getFullYear(), 0, 1);
-          break;
-        default:
-          dateStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        case 'this-year':  dateStart = new Date(now.getFullYear(), 0, 1); break;
+        default:           dateStart = new Date(now.getFullYear(), now.getMonth(), 1);
       }
-      if (!dateEnd) {
-        dateEnd = new Date();
-      }
+      if (!dateEnd) dateEnd = new Date();
     }
 
-    // Build where conditions
-    const whereConditions = {
-      createdAt: { 
-        [Op.gte]: dateStart,
-        [Op.lte]: dateEnd
-      }
-    };
-
+    const whereConditions = { createdAt: { [Op.gte]: dateStart, [Op.lte]: dateEnd } };
     const appointmentWhere = {};
     const caregiverWhere = {};
-    const patientWhere = {};
-    const patientUserWhere = {};
 
-    // Apply region filtering - only filter caregivers by user's assigned region
     if (userRegionFilter) {
-      // User is restricted to a specific region - only filter caregivers
       caregiverWhere.region = userRegionFilter;
-      // Don't filter patients by region - allow any patient who worked with caregivers in this region
-    } else {
-      // User has 'all' regions access (system_manager or assignedRegion='all')
-      if (region && region !== 'all') {
-        caregiverWhere.region = region;
-        patientWhere.region = region;
-      }
-      // No region filter applied if region is 'all' or not specified
+    } else if (region && region !== 'all') {
+      caregiverWhere.region = region;
     }
+    if (caregiverId && caregiverId !== 'all') appointmentWhere.caregiverId = caregiverId;
+    if (district && district !== 'all') caregiverWhere.district = district;
+    if (traditionalAuthority && traditionalAuthority !== 'all') caregiverWhere.traditionalAuthority = traditionalAuthority;
+    if (village && village !== 'all') caregiverWhere.village = village;
 
-    // Filter by caregiver
-    if (caregiverId && caregiverId !== 'all') {
-      appointmentWhere.caregiverId = caregiverId;
-    }
-    
-    if (district && district !== 'all') {
-      caregiverWhere.district = district;
-    }
-    if (traditionalAuthority && traditionalAuthority !== 'all') {
-      caregiverWhere.traditionalAuthority = traditionalAuthority;
-    }
-    if (village && village !== 'all') {
-      caregiverWhere.village = village;
-    }
+    const hasCaregiverFilter = Object.keys(caregiverWhere).length > 0;
+    const hasAppointmentFilter = Object.keys(appointmentWhere).length > 0;
 
-    // Filter by patient search
-    if (patientSearch) {
-      patientUserWhere[Op.or] = [
-        { firstName: { [Op.iLike]: `%${patientSearch}%` } },
-        { lastName: { [Op.iLike]: `%${patientSearch}%` } },
-        { email: { [Op.iLike]: `%${patientSearch}%` } }
+    // ── summary=true: return only aggregates, no rows ──────────────────────
+    if (summary === 'true') {
+      const sequelize = require('../config/database');
+      const { fn, col, literal } = require('sequelize');
+
+      const aggIncludes = [
+        {
+          model: Appointment,
+          required: hasCaregiverFilter || hasAppointmentFilter,
+          where: hasAppointmentFilter ? appointmentWhere : undefined,
+          attributes: [],
+          include: hasCaregiverFilter ? [{
+            model: Caregiver,
+            where: caregiverWhere,
+            required: true,
+            attributes: []
+          }] : []
+        }
       ];
+
+      const rows = await PaymentTransaction.findAll({
+        attributes: [
+          [fn('SUM', literal('CASE WHEN PaymentTransaction.status = \'completed\' THEN PaymentTransaction.amount ELSE 0 END')), 'totalAmount'],
+          [fn('SUM', literal('CASE WHEN PaymentTransaction.status = \'completed\' THEN PaymentTransaction.platformCommissionAmount ELSE 0 END')), 'totalCommission'],
+          [fn('SUM', literal('CASE WHEN PaymentTransaction.status = \'completed\' THEN PaymentTransaction.convenienceFeeAmount ELSE 0 END')), 'totalConvenienceFee'],
+          [fn('SUM', literal('CASE WHEN PaymentTransaction.status = \'completed\' THEN PaymentTransaction.caregiverEarnings ELSE 0 END')), 'totalCaregiverEarnings'],
+          [fn('COUNT', literal('CASE WHEN PaymentTransaction.status = \'completed\' THEN 1 END')), 'completedCount']
+        ],
+        where: whereConditions,
+        include: aggIncludes,
+        raw: true
+      });
+
+      const s = rows[0] || {};
+      return res.json({
+        totalAmount:           parseFloat(s.totalAmount || 0).toFixed(2),
+        totalCommission:       parseFloat(s.totalCommission || 0).toFixed(2),
+        totalConvenienceFee:   parseFloat(s.totalConvenienceFee || 0).toFixed(2),
+        totalCaregiverEarnings:parseFloat(s.totalCaregiverEarnings || 0).toFixed(2),
+        completedCount:        parseInt(s.completedCount || 0)
+      });
     }
 
     // Calculate pagination
@@ -206,74 +201,64 @@ router.get('/admin', requirePermission('view_financial_reports'), async (req, re
 // Get earnings for caregiver
 router.get('/caregiver', async (req, res, next) => {
   try {
-    const { 
-      period = 'this-month', 
-      startDate, 
-      endDate, 
-      patientSearch, 
-      region, 
-      district, 
-      traditionalAuthority, 
-      village,
-      page = 1, 
-      limit = 100 
-    } = req.query;
+    const { period = 'this-month', startDate, endDate, patientSearch, region, district, traditionalAuthority, village, page = 1, limit = 100, summary } = req.query;
     
-    // Find caregiver by user ID
     const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
-    if (!caregiver) {
-      return res.status(404).json({ error: 'Caregiver profile not found' });
-    }
+    if (!caregiver) return res.status(404).json({ error: 'Caregiver profile not found' });
 
-    // Get date range based on period or custom dates
     const now = new Date();
     let dateStart, dateEnd;
-    
     if (period === 'custom' && startDate && endDate) {
       dateStart = new Date(startDate);
       dateEnd = new Date(endDate);
       dateEnd.setHours(23, 59, 59, 999);
     } else {
       switch (period) {
-        case 'this-week':
-          dateStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-          break;
-        case 'this-month':
-          dateStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          break;
+        case 'this-week':  dateStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()); break;
+        case 'this-month': dateStart = new Date(now.getFullYear(), now.getMonth(), 1); break;
         case 'last-month':
           dateStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          dateEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+          dateEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
           break;
-        case 'this-year':
-          dateStart = new Date(now.getFullYear(), 0, 1);
-          break;
-        default:
-          dateStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        case 'this-year':  dateStart = new Date(now.getFullYear(), 0, 1); break;
+        default:           dateStart = new Date(now.getFullYear(), now.getMonth(), 1);
       }
-      if (!dateEnd) {
-        dateEnd = new Date();
-      }
+      if (!dateEnd) dateEnd = new Date();
     }
 
-    // Build where conditions
-    const whereConditions = {
-      createdAt: { 
-        [Op.gte]: dateStart,
-        [Op.lte]: dateEnd
-      }
-    };
-
+    const whereConditions = { createdAt: { [Op.gte]: dateStart, [Op.lte]: dateEnd } };
     const appointmentWhere = { caregiverId: caregiver.id };
-    const patientWhere = {};
-    const patientUserWhere = {};
+
+    // ── summary=true: return only aggregates, no rows ──────────────────────
+    if (summary === 'true') {
+      const { fn, literal } = require('sequelize');
+      const rows = await PaymentTransaction.findAll({
+        attributes: [
+          [fn('SUM', literal("CASE WHEN PaymentTransaction.status = 'completed' AND `PaymentTransaction`.`payment_type` = 'session_fee' THEN PaymentTransaction.caregiverEarnings ELSE 0 END")), 'netEarnings'],
+          [fn('SUM', literal("CASE WHEN PaymentTransaction.status = 'completed' AND `PaymentTransaction`.`payment_type` = 'session_fee' THEN PaymentTransaction.platformCommissionAmount ELSE 0 END")), 'totalCommission'],
+          [fn('COUNT', literal("CASE WHEN PaymentTransaction.status = 'completed' AND `PaymentTransaction`.`payment_type` = 'session_fee' THEN 1 END")), 'sessionsCompleted']
+        ],
+        where: whereConditions,
+        include: [{ model: Appointment, where: appointmentWhere, required: true, attributes: [] }],
+        raw: true
+      });
+      const s = rows[0] || {};
+      const net = parseFloat(s.netEarnings || 0);
+      const sessions = parseInt(s.sessionsCompleted || 0);
+      return res.json({
+        netEarnings:      net.toFixed(2),
+        totalCommission:  parseFloat(s.totalCommission || 0).toFixed(2),
+        sessionsCompleted: sessions,
+        averagePerSession: sessions > 0 ? (net / sessions).toFixed(2) : '0.00'
+      });
+    }
 
     // Filter by patient search
     if (patientSearch) {
       patientUserWhere[Op.or] = [
-        { firstName: { [Op.iLike]: `%${patientSearch}%` } },
-        { lastName: { [Op.iLike]: `%${patientSearch}%` } },
-        { email: { [Op.iLike]: `%${patientSearch}%` } }
+        { firstName: { [Op.like]: `%${patientSearch}%` } },
+        { lastName: { [Op.like]: `%${patientSearch}%` } },
+        { email: { [Op.like]: `%${patientSearch}%` } }
       ];
     }
 
@@ -364,9 +349,9 @@ router.get('/caregivers/search', async (req, res, next) => {
 
     const whereConditions = {
       [Op.or]: [
-        { firstName: { [Op.iLike]: `%${q}%` } },
-        { lastName: { [Op.iLike]: `%${q}%` } },
-        { email: { [Op.iLike]: `%${q}%` } }
+        { firstName: { [Op.like]: `%${q}%` } },
+        { lastName: { [Op.like]: `%${q}%` } },
+        { email: { [Op.like]: `%${q}%` } }
       ]
     };
 

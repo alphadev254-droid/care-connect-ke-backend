@@ -146,25 +146,25 @@ router.get('/search', async (req, res) => {
     
     if (type === 'all' || type === 'region') {
       searchCondition[Op.or].push({
-        region: { [Op.iLike]: `%${q}%` }
+        region: { [Op.like]: `%${q}%` }
       });
     }
     
     if (type === 'all' || type === 'district') {
       searchCondition[Op.or].push({
-        district: { [Op.iLike]: `%${q}%` }
+        district: { [Op.like]: `%${q}%` }
       });
     }
     
     if (type === 'all' || type === 'ta') {
       searchCondition[Op.or].push({
-        traditionalAuthority: { [Op.iLike]: `%${q}%` }
+        traditionalAuthority: { [Op.like]: `%${q}%` }
       });
     }
     
     if (type === 'all' || type === 'village') {
       searchCondition[Op.or].push({
-        village: { [Op.iLike]: `%${q}%` }
+        village: { [Op.like]: `%${q}%` }
       });
     }
     

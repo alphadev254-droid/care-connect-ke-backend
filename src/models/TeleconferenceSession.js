@@ -3,12 +3,12 @@ const sequelize = require('../config/database');
 
 const TeleconferenceSession = sequelize.define('TeleconferenceSession', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   appointmentId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'appointments', key: 'id' }
   },

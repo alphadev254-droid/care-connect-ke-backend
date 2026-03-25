@@ -4,17 +4,14 @@ const { TIMESLOT_STATUS } = require('../utils/constants');
 
 const TimeSlot = sequelize.define('TimeSlot', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   caregiverId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
-    references: {
-      model: 'Caregivers',
-      key: 'id'
-    }
+    references: { model: 'caregivers', key: 'id' }
   },
   date: {
     type: DataTypes.DATEONLY,
@@ -32,12 +29,7 @@ const TimeSlot = sequelize.define('TimeSlot', {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 180,
-    comment: 'Duration in minutes (default 3 hours)'
-  },
-  price: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: true,
-    comment: 'Deprecated - prices are now on specialties'
+    comment: 'Duration in minutes'
   },
   status: {
     type: DataTypes.ENUM,
@@ -54,30 +46,23 @@ const TimeSlot = sequelize.define('TimeSlot', {
     defaultValue: false
   },
   appointmentId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: true,
-    references: {
-      model: 'Appointments',
-      key: 'id'
-    }
+    references: { model: 'appointments', key: 'id' }
   },
   availabilityId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: true,
-    references: {
-      model: 'CaregiverAvailabilities',
-      key: 'id'
-    },
+    references: { model: 'caregiver_availability', key: 'id' },
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
     comment: 'Links time slot to the availability that generated it'
   }
 }, {
   tableName: 'time_slots',
   timestamps: true,
   indexes: [
-    {
-      unique: true,
-      fields: ['caregiverId', 'date', 'startTime']
-    }
+    { unique: true, fields: ['caregiverId', 'date', 'startTime'] }
   ]
 });
 

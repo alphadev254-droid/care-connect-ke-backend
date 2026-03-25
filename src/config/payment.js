@@ -1,22 +1,20 @@
 require('dotenv').config();
 
+const platformCommissionRate = parseFloat(process.env.PLATFORM_COMMISSION_RATE) || 20;
+const convenienceFeeCard   = parseFloat(process.env.PAYMENT_CONVENIENCE_FEE_PERCENTAGE_CARD)   || 2.9;
+const convenienceFeeMobile = parseFloat(process.env.PAYMENT_CONVENIENCE_FEE_PERCENTAGE_MOBILE) || 1.5;
+
 module.exports = {
-  paychangu: {
-    publicKey: process.env.TEST_PUBLIC_KEY,
-    secretKey: process.env.TEST_SECRET_KEY,
-    webhookSecret: process.env.TEST_WEBHOOK_SECRET,
+  paystack: {
+    secretKey: process.env.PAYSTACK_SECRET_KEY,
+    publicKey: process.env.PAYSTACK_PUBLIC_KEY,
+    baseUrl: process.env.PAYSTACK_BASE_URL || 'https://api.paystack.co',
     webhookBaseUrl: process.env.WEBHOOK_BASE_URL,
-    apiUrl: 'https://api.paychangu.com',
-    currency: 'MWK', // Malawi Kwacha
+    currency: 'KES',
     environment: process.env.NODE_ENV || 'development',
-    convenienceFeePercentage: parseFloat(process.env.PAYMENT_CONVENIENCE_FEE_PERCENTAGE) || 2,
-    taxRate: parseFloat(process.env.PAYMENT_TAX_RATE) || 17.5, // Malawi VAT rate
-    platformCommissionRate: parseFloat(process.env.PLATFORM_COMMISSION_RATE) || 20, // Platform commission percentage
-    // Withdrawal fees
-    withdrawalFees: {
-      mobileMoneyRate: parseFloat(process.env.WITHDRAWAL_MOBILE_MONEY_FEE_RATE) || 0.03, // 3%
-      bankRate: parseFloat(process.env.WITHDRAWAL_BANK_FEE_RATE) || 0.01, // 1%
-      bankFixedFee: parseFloat(process.env.WITHDRAWAL_BANK_FIXED_FEE) || 700 // 700 MWK
-    }
+    platformCommissionRate,
+    convenienceFeeCard,
+    convenienceFeeMobile,
+    subaccountSplitPercentage: 100 - platformCommissionRate - convenienceFeeMobile // conservative default
   }
 };

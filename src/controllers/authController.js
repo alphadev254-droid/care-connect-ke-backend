@@ -68,7 +68,7 @@ const register = asyncHandler(async (req, res, next) => {
     switch (role) {
       case 'patient':
         const patientData = {
-          userId: parseInt(createdUser.id),
+          userId: createdUser.id,
           dateOfBirth: roleSpecificData.dateOfBirth,
           address: roleSpecificData.address,
           emergencyContact: roleSpecificData.emergencyContact,
@@ -232,7 +232,7 @@ const register = asyncHandler(async (req, res, next) => {
         });
         
         if (roleSpecificData.specialties && Array.isArray(roleSpecificData.specialties) && createdCaregiver) {
-          const specialtyIds = roleSpecificData.specialties.map(id => parseInt(id));
+          const specialtyIds = roleSpecificData.specialties;
           await createdCaregiver.setSpecialties(specialtyIds, { transaction });
         }
 
@@ -351,6 +351,7 @@ const register = asyncHandler(async (req, res, next) => {
         const generateSlots = async () => {
           const { TimeSlot } = require('../models');
           const { TIMESLOT_STATUS } = require('../utils/constants');
+          const { Op } = require('sequelize');
 
           const caregiver = await Caregiver.findOne({ where: { userId: createdUser.id } });
           if (!caregiver) throw new Error(`Caregiver not found for userId ${createdUser.id}`);
@@ -360,41 +361,48 @@ const register = asyncHandler(async (req, res, next) => {
           });
           if (!savedAvailability.length) return;
 
-          const startDate = new Date().toISOString().split('T')[0];
-          const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const duration = parseInt(process.env.DEFAULT_APPOINTMENT_DURATION) || caregiver.appointmentDuration || 180;
+
+          const pad = (n) => String(n).padStart(2, '0');
+          const toLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+          const now = new Date();
+          const startDate = toLocal(now);
+          const endDate = toLocal(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
 
           const allSlots = [];
           for (const availability of savedAvailability) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
+            const [sh, sm] = availability.startTime.split(':').map(Number);
+            const [eh, em] = availability.endTime.split(':').map(Number);
+
+            const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const end = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
 
             for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
               if (Number(availability.dayOfWeek) !== date.getDay()) continue;
 
-              const slotStart = new Date(`${date.toDateString()} ${availability.startTime}`);
-              const slotEnd = new Date(`${date.toDateString()} ${availability.endTime}`);
+              const windowEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), eh, em, 0);
+              let cursor = new Date(date.getFullYear(), date.getMonth(), date.getDate(), sh, sm, 0);
 
-              while (slotStart < slotEnd) {
-                const slotEndTime = new Date(slotStart.getTime() + caregiver.appointmentDuration * 60000);
-                if (slotEndTime <= slotEnd) {
+              while (cursor < windowEnd) {
+                const slotEnd = new Date(cursor.getTime() + duration * 60000);
+                if (slotEnd <= windowEnd) {
                   allSlots.push({
                     caregiverId: caregiver.id,
-                    date: date.toISOString().split('T')[0],
-                    startTime: slotStart.toTimeString().split(' ')[0],
-                    endTime: slotEndTime.toTimeString().split(' ')[0],
-                    duration: caregiver.appointmentDuration,
-                    price: Math.round((caregiver.hourlyRate * caregiver.appointmentDuration) / 60),
+                    date: toLocal(date),
+                    startTime: `${pad(cursor.getHours())}:${pad(cursor.getMinutes())}:00`,
+                    endTime: `${pad(slotEnd.getHours())}:${pad(slotEnd.getMinutes())}:00`,
+                    duration,
                     status: TIMESLOT_STATUS.AVAILABLE,
                     availabilityId: availability.id
                   });
                 }
-                slotStart.setTime(slotStart.getTime() + caregiver.appointmentDuration * 60000);
+                cursor = slotEnd;
               }
             }
           }
 
           if (allSlots.length > 0) {
-            await TimeSlot.bulkCreate(allSlots, { ignoreDuplicates: true });
+            await TimeSlot.bulkCreate(allSlots);
             console.log(`✅ Auto-generated ${allSlots.length} time slots for caregiver ${caregiver.id}`);
           }
         };
@@ -589,7 +597,7 @@ const login = async (req, res, next) => {
 
     // Additional validation for caregivers
     if (user.Role?.name === 'caregiver') {
-      if (!user.Caregiver || user.Caregiver.verificationStatus !== 'APPROVED') {
+      if (!user.Caregiver || user.Caregiver.verificationStatus !== 'verified') {
         console.log('❌ Caregiver not verified:', email);
         return res.status(401).json({ 
           error: 'Account pending verification. Please wait for admin approval.' 

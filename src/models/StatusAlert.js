@@ -4,17 +4,17 @@ const { ALERT_SEVERITY } = require('../utils/constants');
 
 const StatusAlert = sequelize.define('StatusAlert', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   patientId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'patients', key: 'id' }
   },
   reportId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'caresessionreports', key: 'id' }
   },
@@ -23,17 +23,9 @@ const StatusAlert = sequelize.define('StatusAlert', {
     values: Object.values(ALERT_SEVERITY),
     allowNull: false
   },
-  message: {
-    type: DataTypes.TEXT,
-    allowNull: false
-  },
-  isRead: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
-  },
-  readAt: {
-    type: DataTypes.DATE
-  }
+  message: { type: DataTypes.TEXT, allowNull: false },
+  isRead: { type: DataTypes.BOOLEAN, defaultValue: false },
+  readAt: { type: DataTypes.DATE }
 }, {
   tableName: 'statusalerts'
 });

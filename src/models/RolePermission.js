@@ -3,17 +3,17 @@ const sequelize = require('../config/database');
 
 const RolePermission = sequelize.define('RolePermission', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   role_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'roles', key: 'id' }
   },
   permission_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'permissions', key: 'id' }
   }

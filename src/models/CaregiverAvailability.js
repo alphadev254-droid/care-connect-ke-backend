@@ -3,25 +3,19 @@ const sequelize = require('../config/database');
 
 const CaregiverAvailability = sequelize.define('CaregiverAvailability', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   caregiverId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
-    references: {
-      model: 'Caregivers',
-      key: 'id'
-    }
+    references: { model: 'caregivers', key: 'id' }
   },
   dayOfWeek: {
     type: DataTypes.INTEGER,
-    allowNull: false, // 0=Sunday, 1=Monday, ..., 6=Saturday
-    validate: {
-      min: 0,
-      max: 6
-    }
+    allowNull: false,
+    validate: { min: 0, max: 6 }
   },
   startTime: {
     type: DataTypes.TIME,

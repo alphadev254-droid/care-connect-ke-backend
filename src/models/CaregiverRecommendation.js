@@ -3,27 +3,27 @@ const sequelize = require('../config/database');
 
 const CaregiverRecommendation = sequelize.define('CaregiverRecommendation', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   physicianId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'primaryphysicians', key: 'id' }
   },
   patientId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'patients', key: 'id' }
   },
   caregiverId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'caregivers', key: 'id' }
   },
   specialtyId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'specialties', key: 'id' }
   },

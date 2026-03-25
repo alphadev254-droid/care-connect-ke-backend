@@ -4,9 +4,9 @@ const { USER_ROLES } = require('../utils/constants');
 
 const User = sequelize.define('User', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
   email: {
     type: DataTypes.STRING,
@@ -36,7 +36,7 @@ const User = sequelize.define('User', {
     unique: true
   },
   role_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     references: { model: 'roles', key: 'id' }
   },
@@ -53,6 +53,10 @@ const User = sequelize.define('User', {
     allowNull: true
   },
   assignedRegion: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  profileImage: {
     type: DataTypes.STRING,
     allowNull: true
   }
