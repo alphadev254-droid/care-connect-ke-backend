@@ -93,13 +93,13 @@ app.use('/api/payments/webhook', express.raw({ type: 'application/json' }), (req
 });
 
 // Routes
-app.use('/api', generalLimiter);
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/forgot-password', authLimiter);
-app.use('/api/auth/reset-password', authLimiter);
-app.use('/api/payments/initiate-booking', paymentLimiter);
-app.use('/api/payments/initiate-session', paymentLimiter);
+// app.use('/api', generalLimiter);
+// app.use('/api/auth/login', authLimiter);
+// app.use('/api/auth/register', authLimiter);
+// app.use('/api/auth/forgot-password', authLimiter);
+// app.use('/api/auth/reset-password', authLimiter);
+// app.use('/api/payments/initiate-booking', paymentLimiter);
+// app.use('/api/payments/initiate-session', paymentLimiter);
 app.use('/api', routes);
 
 // /uploads is NOT served statically — use /api/documents/view?token=... instead
