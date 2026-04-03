@@ -27,6 +27,7 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 const app = express();
+app.set('trust proxy', 1)
 const server = createServer(app);
 
 // Parse allowed origins from environment variable (comma-separated)
