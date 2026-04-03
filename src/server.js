@@ -12,7 +12,7 @@ const fs = require('fs');
 const db = require('./models');
 const routes = require('./routes');
 const { errorHandler } = require('./middleware/errorHandler.middleware');
-const { authLimiter, paymentLimiter, generalLimiter } = require('./middleware/rateLimiter');
+const {  paymentLimiter, generalLimiter } = require('./middleware/rateLimiter');
 const logger = require('./utils/logger');
 const { getAllowedOrigins } = require('./utils/config');
 const cleanupService = require('./services/cleanupService');
@@ -93,11 +93,11 @@ app.use('/api/payments/webhook', express.raw({ type: 'application/json' }), (req
 });
 
 // Routes
-app.use('/api', generalLimiter);
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/forgot-password', authLimiter);
-app.use('/api/auth/reset-password', authLimiter);
+app.use('/api');
+app.use('/api/auth/login');
+app.use('/api/auth/register' );
+app.use('/api/auth/forgot-password' );
+app.use('/api/auth/reset-password');
 app.use('/api/payments/initiate-booking', paymentLimiter);
 app.use('/api/payments/initiate-session', paymentLimiter);
 app.use('/api', routes);
