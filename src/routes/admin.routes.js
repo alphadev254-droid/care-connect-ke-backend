@@ -37,7 +37,7 @@ router.get('/caregivers', requireAnyPermission(['view_caregivers', 'view_users']
     let caregiverWhereClause = {};
     
     // Apply region filtering for regional managers and accountants
-    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
+    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'accountant') {
       if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
         caregiverWhereClause.region = currentUser.assignedRegion;
       }
@@ -148,7 +148,7 @@ router.get('/withdrawals', requirePermission('view_withdrawal_requests'), async 
     };
     
     // Apply region filtering for regional managers
-    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
+    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'accountant') {
       if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
         caregiverWhereClause.region = currentUser.assignedRegion;
       }
@@ -541,7 +541,7 @@ router.get('/users/:userId', requireAnyPermission(['view_caregivers', 'view_pati
     }
     
     // Check region access for regional managers and accountants
-    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
+    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'accountant') {
       if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
         const userRegion = user.Patient?.region || user.Caregiver?.region;
         if (userRegion && userRegion !== currentUser.assignedRegion) {
@@ -693,7 +693,7 @@ router.delete('/users/:userId', requirePermission('delete_users'), async (req, r
 
     // Only allow deletion of inactive/deactivated users or rejected caregivers
     const isInactive = !user.isActive;
-    const isRejectedCaregiver = user.Role?.name === 'caregiver' && user.Caregiver?.verificationStatus === 'REJECTED';
+    const isRejectedCaregiver = user.Role?.name === 'caregiver' && user.Caregiver?.verificationStatus === 'rejected';
 
     if (!isInactive && !isRejectedCaregiver) {
       return res.status(403).json({
@@ -946,7 +946,7 @@ router.get('/withdrawals/overview', requirePermission('view_withdrawal_requests'
 
     // ── Caregiver filter ──────────────────────────────────────────────────
     const caregiverWhere = {};
-    if (['regional_manager', 'Accountant'].includes(currentUser.Role?.name)) {
+    if (['regional_manager', 'accountant'].includes(currentUser.Role?.name)) {
       if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
         caregiverWhere.region = currentUser.assignedRegion;
       }

@@ -91,13 +91,13 @@ const rejectCaregiver = async (req, res, next) => {
     }
 
     // Update caregiver verification status
-    await user.Caregiver.update({ verificationStatus: 'REJECTED' });
+    await user.Caregiver.update({ verificationStatus: 'rejected' });
     
     // Create notification for caregiver rejection
     try {
       await NotificationHelper.createCaregiverVerificationNotifications(
         user.id, 
-        'REJECTED', 
+        'rejected', 
         user.Caregiver.region
       );
     } catch (notificationError) {
@@ -197,12 +197,9 @@ const getAllUsers = async (req, res, next) => {
     
     if (userPermissions.includes('view_caregivers')) allowedRoles.push('caregiver');
     if (userPermissions.includes('view_patients')) allowedRoles.push('patient');
-    if (userPermissions.includes('view_accountants')) allowedRoles.push('Accountant');
+    if (userPermissions.includes('view_accountants')) allowedRoles.push('accountant');
     if (userPermissions.includes('view_regional_managers')) allowedRoles.push('regional_manager');
     if (userPermissions.includes('view_system_managers')) allowedRoles.push('system_manager');
-    
-    console.log('User permissions:', userPermissions);
-    console.log('Allowed roles:', allowedRoles);
 
     if (allowedRoles.length === 0) {
       return res.status(403).json({ error: 'No permission to view any users' });
@@ -213,13 +210,6 @@ const getAllUsers = async (req, res, next) => {
       include: [{ model: Role }]
     });
 
-    console.log('Current user:', {
-      id: currentUser.id,
-      role: currentUser.Role?.name,
-      assignedRegion: currentUser.assignedRegion
-    });
-    console.log('Query params - role:', role, 'search:', search, 'status:', status);
-    
     // Build where conditions
     const userWhere = {};
     const roleWhere = {};
@@ -243,8 +233,8 @@ const getAllUsers = async (req, res, next) => {
     let caregiverStatusWhere = {};
     if (status && status !== 'all') {
       if (status === 'rejected') {
-        // For rejected status, filter caregivers with REJECTED verification status
-        caregiverStatusWhere.verificationStatus = 'REJECTED';
+        // For rejected status, filter caregivers with rejected verification status
+        caregiverStatusWhere.verificationStatus = 'rejected';
         // Only show caregivers for rejected status
         roleWhere.name = 'caregiver';
       } else {
@@ -255,14 +245,11 @@ const getAllUsers = async (req, res, next) => {
 
     // Add region filtering for regional managers and accountants
     let regionFilter = null;
-    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
+    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'accountant') {
       if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
         regionFilter = currentUser.assignedRegion;
       }
     }
-    
-    console.log('Region filter:', regionFilter);
-    console.log('Role where:', roleWhere);
     
     // Build query with region filtering at database level
     // Merge caregiver filters (region + verification status)
@@ -307,14 +294,11 @@ const getAllUsers = async (req, res, next) => {
     
     // Apply region filtering by making includes required when filtering
     if (regionFilter) {
-      console.log('=== REGION FILTER DETECTED ===');
       // Check which roles are being queried to determine which includes to make required
       const rolesBeingQueried = Array.isArray(roleWhere.name?.[Op.in]) ? roleWhere.name[Op.in] : [roleWhere.name];
-      console.log('Roles being queried:', rolesBeingQueried);
 
       // If filtering multiple roles that include both caregivers and patients, use OR condition
       if (rolesBeingQueried.includes('caregiver') && rolesBeingQueried.includes('patient')) {
-        console.log('Both caregiver and patient roles detected - using raw SQL approach');
         // Build WHERE conditions for region filtering based on permissions
         const regionConditions = [];
         
@@ -327,11 +311,6 @@ const getAllUsers = async (req, res, next) => {
         }
         
         if (regionConditions.length > 0) {
-          console.log('=== EXECUTING RAW SQL QUERY ===');
-          console.log('Region filter:', regionFilter);
-          console.log('Roles being queried:', rolesBeingQueried);
-          console.log('Region conditions:', regionConditions);
-
           // Use raw SQL for region filtering with proper permission-based conditions
           const usersResult = await sequelize.query(`
             SELECT DISTINCT u.*, r.name as role_name
@@ -343,7 +322,7 @@ const getAllUsers = async (req, res, next) => {
             AND (${regionConditions.join(' OR ')})
             ${search ? 'AND (u.firstName LIKE :search OR u.lastName LIKE :search OR u.email LIKE :search)' : ''}
             ${status && status !== 'all' && status !== 'rejected' ? 'AND u.isActive = :isActive' : ''}
-            ${status === 'rejected' ? 'AND c.verificationStatus = \'REJECTED\'' : ''}
+            ${status === 'rejected' ? "AND c.verificationStatus = 'rejected'" : ''}
             ORDER BY u.createdAt DESC
             LIMIT :limit OFFSET :offset
           `, {
@@ -359,10 +338,6 @@ const getAllUsers = async (req, res, next) => {
           });
 
           const users = usersResult || [];
-          console.log(`Raw SQL returned ${users.length} users`);
-          if (users.length > 0) {
-            console.log('Sample user roles:', users.slice(0, 3).map(u => ({ id: u.id, role: u.role_name })));
-          }
 
           // Get total count
           const countResult = await sequelize.query(`
@@ -375,7 +350,7 @@ const getAllUsers = async (req, res, next) => {
             AND (${regionConditions.join(' OR ')})
             ${search ? 'AND (u.firstName LIKE :search OR u.lastName LIKE :search OR u.email LIKE :search)' : ''}
             ${status && status !== 'all' && status !== 'rejected' ? 'AND u.isActive = :isActive' : ''}
-            ${status === 'rejected' ? 'AND c.verificationStatus = \'REJECTED\'' : ''}
+            ${status === 'rejected' ? "AND c.verificationStatus = 'rejected'" : ''}
           `, {
             replacements: {
               allowedRoles: rolesBeingQueried,
@@ -434,7 +409,7 @@ const getAllUsers = async (req, res, next) => {
       queryOptions.include[1].required = true;
     }
     
-    const { count, rows: users } = await User.findAndCountAll(queryOptions);
+    const { count, rows: users } = await User.findAndCountAll({ ...queryOptions, distinct: true });
     
     res.json({ 
       users: users.map(sanitizeUser),
@@ -461,7 +436,7 @@ const getUserStats = async (req, res, next) => {
     
     // Determine region filter
     let regionFilter = null;
-    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
+    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'accountant') {
       if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
         regionFilter = currentUser.assignedRegion;
       }
@@ -530,7 +505,7 @@ const getUserStats = async (req, res, next) => {
     }
     
     if (userPermissions.includes('view_accountants')) {
-      const accountantRole = await Role.findOne({ where: { name: 'Accountant' } });
+      const accountantRole = await Role.findOne({ where: { name: 'accountant' } });
       if (accountantRole) {
         const accountants = await User.count({ where: { role_id: accountantRole.id } });
         const activeAccountants = await User.count({ where: { role_id: accountantRole.id, isActive: true } });
@@ -583,7 +558,7 @@ const getAllRoles = async (req, res, next) => {
     
     if (userPermissions.includes('view_caregivers')) allowedRoles.push('caregiver');
     if (userPermissions.includes('view_patients')) allowedRoles.push('patient');
-    if (userPermissions.includes('view_accountants')) allowedRoles.push('Accountant');
+    if (userPermissions.includes('view_accountants')) allowedRoles.push('accountant');
     if (userPermissions.includes('view_regional_managers')) allowedRoles.push('regional_manager');
     if (userPermissions.includes('view_system_managers')) allowedRoles.push('system_manager');
     if (userPermissions.includes('view_roles')) {
@@ -698,7 +673,7 @@ const updateUser = async (req, res, next) => {
     }
 
     // Check region access for regional managers and accountants
-    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
+    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'accountant') {
       if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all') {
         const userRegion = user.Patient?.region || user.Caregiver?.region;
         if (userRegion && userRegion !== currentUser.assignedRegion) {
