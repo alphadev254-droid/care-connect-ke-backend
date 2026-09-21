@@ -22,6 +22,7 @@ router.use(authenticateToken);
 router.get('/', getCaregivers);
 router.get('/profile', requireCaregiver, getProfile);
 router.get('/verification', requireCaregiver, getVerificationProfile);
+router.put('/verification', requireCaregiver, updateVerificationProfile);
 router.patch('/verification', requireCaregiver, updateVerificationProfile);
 router.post('/verification/files', requireCaregiver, uploadMultiple, handleMulterError, uploadVerificationFile);
 router.get('/my-patients', requireVerifiedCaregiver, getMyPatients);
