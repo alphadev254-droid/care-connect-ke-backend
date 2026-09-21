@@ -183,7 +183,8 @@ const register = asyncHandler(async (req, res, next) => {
                   url: uploadResult.url,
                   public_id: uploadResult.public_id,
                   filename: file.originalname,
-                  format: uploadResult.format
+                  format: uploadResult.format,
+                  resource_type: uploadResult.resource_type
                 });
               } catch (uploadError) {
                 console.error('Supporting document upload failed:', uploadError);
@@ -201,16 +202,17 @@ const register = asyncHandler(async (req, res, next) => {
             }
           }
           
-          // Handle ID documents (max 3)
+          // Handle ID documents (max 2)
           if (uploadedFiles.idDocuments) {
-            for (const file of uploadedFiles.idDocuments.slice(0, 3)) {
+            for (const file of uploadedFiles.idDocuments.slice(0, 2)) {
               try {
                 const uploadResult = await uploadToCloudinary(file, 'caregiver-ids');
                 idDocumentUrls.push({
                   url: uploadResult.url,
                   public_id: uploadResult.public_id,
                   filename: file.originalname,
-                  format: uploadResult.format
+                  format: uploadResult.format,
+                  resource_type: uploadResult.resource_type
                 });
               } catch (uploadError) {
                 console.error('ID document upload failed:', uploadError);

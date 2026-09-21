@@ -113,7 +113,7 @@ router.get('/users/stats', requireAnyPermission(['view_users', 'view_caregivers'
 router.get('/users/:userId/files/:field/:index', requireAnyPermission(['view_caregivers', 'view_users']), async (req, res, next) => {
   try {
     const { User, Role, Caregiver } = require('../models');
-    const { getSignedFileUrl, streamCloudinaryFile } = require('../services/cloudinaryService');
+    const { getSignedFileUrl, streamCloudinaryFile, getCloudinaryFileFromUrl } = require('../services/cloudinaryService');
     const { userId, field, index } = req.params;
 
     const currentUser = await User.findByPk(req.user.id, {
@@ -162,6 +162,18 @@ router.get('/users/:userId/files/:field/:index', requireAnyPermission(['view_car
       document = documents[documentIndex];
     } else {
       return res.status(400).json({ error: 'Invalid file field' });
+    }
+
+    if (typeof document === 'string') {
+      document = {
+        url: document,
+        ...getCloudinaryFileFromUrl(document)
+      };
+    } else if (document?.url && !document.public_id) {
+      document = {
+        ...document,
+        ...getCloudinaryFileFromUrl(document.url)
+      };
     }
 
     if (!document?.url && !document?.public_id) {

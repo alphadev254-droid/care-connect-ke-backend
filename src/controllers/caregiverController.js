@@ -26,7 +26,20 @@ const getVerificationResponse = async (userId) => {
 
 const normalizeDocument = (document) => {
   if (!document) return null;
-  if (typeof document === 'string') return { url: document };
+  if (typeof document === 'string') {
+    const { getCloudinaryFileFromUrl } = require('../services/cloudinaryService');
+    return {
+      url: document,
+      ...getCloudinaryFileFromUrl(document)
+    };
+  }
+  if (document.url && !document.public_id) {
+    const { getCloudinaryFileFromUrl } = require('../services/cloudinaryService');
+    return {
+      ...document,
+      ...getCloudinaryFileFromUrl(document.url)
+    };
+  }
   return document;
 };
 

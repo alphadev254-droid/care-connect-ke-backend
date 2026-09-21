@@ -49,11 +49,55 @@ const getSignedFileUrl = ({ public_id, resource_type = 'image', format, expiresI
   });
 };
 
+const getCloudinaryFileFromUrl = (url) => {
+  if (!url || !url.includes('res.cloudinary.com')) return null;
+
+  try {
+    const parsedUrl = new URL(url);
+    const parts = parsedUrl.pathname.split('/').filter(Boolean);
+    const uploadIndex = parts.indexOf('upload');
+
+    if (parts.length < 4 || uploadIndex === -1 || uploadIndex + 1 >= parts.length) {
+      return null;
+    }
+
+    const resource_type = parts[1];
+    const fileParts = parts.slice(uploadIndex + 1);
+    const versionIndex = fileParts.findIndex((part) => /^v\d+$/.test(part));
+    const publicIdParts = versionIndex >= 0 ? fileParts.slice(versionIndex + 1) : fileParts;
+
+    if (publicIdParts.length === 0) return null;
+
+    const public_id = decodeURIComponent(publicIdParts.join('/'));
+    const extensionMatch = public_id.match(/\.([a-zA-Z0-9]+)$/);
+
+    return {
+      public_id,
+      resource_type,
+      format: extensionMatch?.[1]
+    };
+  } catch {
+    return null;
+  }
+};
+
 const getSignedDownloadUrl = ({ public_id, resource_type = 'raw', format, expiresInSeconds = 300, attachment = false }) => {
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
+
+  if (cloudinary.utils?.private_download_url) {
+    return cloudinary.utils.private_download_url(public_id, format, {
+      resource_type,
+      type: 'upload',
+      expires_at: expiresAt,
+      attachment
+    });
+  }
+
   const signatureParams = {
     attachment: String(attachment),
-    expires_at: Math.floor(Date.now() / 1000) + expiresInSeconds,
+    expires_at: expiresAt,
     public_id,
+    timestamp: Math.floor(Date.now() / 1000),
     type: 'upload'
   };
 
@@ -110,6 +154,7 @@ module.exports = {
   uploadToCloudinary,
   deleteFromCloudinary,
   getSignedFileUrl,
+  getCloudinaryFileFromUrl,
   getSignedDownloadUrl,
   streamCloudinaryFile,
 };
