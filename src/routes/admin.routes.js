@@ -113,7 +113,7 @@ router.get('/users/stats', requireAnyPermission(['view_users', 'view_caregivers'
 router.get('/users/:userId/files/:field/:index', requireAnyPermission(['view_caregivers', 'view_users']), async (req, res, next) => {
   try {
     const { User, Role, Caregiver } = require('../models');
-    const { getSignedFileUrl } = require('../services/cloudinaryService');
+    const { getSignedFileUrl, streamCloudinaryFile } = require('../services/cloudinaryService');
     const { userId, field, index } = req.params;
 
     const currentUser = await User.findByPk(req.user.id, {
@@ -172,9 +172,20 @@ router.get('/users/:userId/files/:field/:index', requireAnyPermission(['view_car
       return res.redirect(document.url);
     }
 
+    const resourceType = getResourceType(document);
+
+    if (resourceType !== 'image') {
+      return streamCloudinaryFile(res, {
+        public_id: document.public_id,
+        resource_type: resourceType,
+        format: document.format,
+        filename: document.filename
+      });
+    }
+
     const signedUrl = getSignedFileUrl({
       public_id: document.public_id,
-      resource_type: getResourceType(document),
+      resource_type: resourceType,
       format: document.format
     });
 

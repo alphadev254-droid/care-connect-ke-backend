@@ -37,7 +37,7 @@ const getFileResourceType = (document) => {
   return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(String(document?.format || '').toLowerCase()) ? 'image' : 'raw';
 };
 
-const redirectToVerificationFile = (res, document) => {
+const redirectToVerificationFile = async (res, document) => {
   const normalizedDocument = normalizeDocument(document);
 
   if (!normalizedDocument?.url && !normalizedDocument?.public_id) {
@@ -48,10 +48,21 @@ const redirectToVerificationFile = (res, document) => {
     return res.redirect(normalizedDocument.url);
   }
 
-  const { getSignedFileUrl } = require('../services/cloudinaryService');
+  const { getSignedFileUrl, streamCloudinaryFile } = require('../services/cloudinaryService');
+  const resourceType = getFileResourceType(normalizedDocument);
+
+  if (resourceType !== 'image') {
+    return streamCloudinaryFile(res, {
+      public_id: normalizedDocument.public_id,
+      resource_type: resourceType,
+      format: normalizedDocument.format,
+      filename: normalizedDocument.filename
+    });
+  }
+
   return res.redirect(getSignedFileUrl({
     public_id: normalizedDocument.public_id,
-    resource_type: getFileResourceType(normalizedDocument),
+    resource_type: resourceType,
     format: normalizedDocument.format
   }));
 };
@@ -526,7 +537,7 @@ const viewVerificationFile = async (req, res, next) => {
     const { field, index } = req.params;
 
     if (field === 'profilePicture' || field === 'profileImage') {
-      return redirectToVerificationFile(res, caregiver.profileImage);
+      return await redirectToVerificationFile(res, caregiver.profileImage);
     }
 
     if (field !== 'idDocuments' && field !== 'supportingDocuments') {
@@ -540,7 +551,7 @@ const viewVerificationFile = async (req, res, next) => {
       return res.status(404).json({ error: 'Caregiver file not found' });
     }
 
-    return redirectToVerificationFile(res, documents[documentIndex]);
+    return await redirectToVerificationFile(res, documents[documentIndex]);
   } catch (error) {
     next(error);
   }
