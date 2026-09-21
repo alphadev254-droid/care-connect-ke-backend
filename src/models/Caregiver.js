@@ -26,6 +26,10 @@ const Caregiver = sequelize.define('Caregiver', {
     type: DataTypes.INTEGER,
     allowNull: false
   },
+  dateOfBirth: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+  },
   qualifications: {
     type: DataTypes.TEXT,
     allowNull: false

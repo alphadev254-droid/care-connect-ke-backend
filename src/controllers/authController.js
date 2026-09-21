@@ -222,7 +222,7 @@ const register = asyncHandler(async (req, res, next) => {
         const caregiver = await Caregiver.create({
           userId: createdUser.id,
           licensingInstitution: roleSpecificData.licensingInstitution,
-          licenseNumber: roleSpecificData.licenseNumber || `TEMP-${Date.now()}`,
+          licenseNumber: roleSpecificData.licenseNumber || `TEMP-${createdUser.id}`,
           experience: roleSpecificData.experience || 0,
           qualifications: roleSpecificData.qualifications || 'To be updated',
           hourlyRate: roleSpecificData.hourlyRate || 50.00,
@@ -533,7 +533,7 @@ const registerAdmin = async (req, res, next) => {
       case 'caregiver':
         await Caregiver.create({
           userId: user.id,
-          licenseNumber: roleSpecificData.licenseNumber || `TEMP-${Date.now()}`,
+          licenseNumber: roleSpecificData.licenseNumber || `TEMP-${user.id}`,
           experience: roleSpecificData.experience || 0,
           qualifications: roleSpecificData.qualifications || 'To be updated',
           hourlyRate: roleSpecificData.hourlyRate || 50.00,
@@ -604,16 +604,6 @@ const login = async (req, res, next) => {
     console.log('✅ User found and active:', email);
     console.log('🔍 Stored password hash length:', user.password?.length);
     console.log('🔍 Input password length:', password?.length);
-
-    // Additional validation for caregivers
-    if (user.Role?.name === 'caregiver') {
-      if (!user.Caregiver || user.Caregiver.verificationStatus !== 'APPROVED') {
-        console.log('❌ Caregiver not verified:', email);
-        return res.status(401).json({ 
-          error: 'Account pending verification. Please wait for admin approval.' 
-        });
-      }
-    }
 
     console.log('🔐 Comparing passwords...');
     const isValidPassword = await bcrypt.compare(password, user.password);

@@ -9,25 +9,24 @@ const {
   clearAllAvailability
 } = require('../controllers/availabilityController');
 const { authenticateToken } = require('../middleware/auth.middleware');
-const { requireRole } = require('../middleware/roleCheck.middleware');
-const { USER_ROLES } = require('../utils/constants');
+const { requireVerifiedCaregiver } = require('../middleware/roleCheck.middleware');
 
 // CREATE - Add single availability slot
-router.post('/slot', authenticateToken, requireRole([USER_ROLES.CAREGIVER]), createAvailability);
+router.post('/slot', authenticateToken, requireVerifiedCaregiver, createAvailability);
 
 // READ - Get caregiver availability (public endpoint)
 router.get('/:caregiverId', getAvailability);
 
 // UPDATE - Update single availability slot
-router.put('/:id', authenticateToken, requireRole([USER_ROLES.CAREGIVER]), updateAvailability);
+router.put('/:id', authenticateToken, requireVerifiedCaregiver, updateAvailability);
 
 // DELETE - Delete single availability slot
-router.delete('/:id', authenticateToken, requireRole([USER_ROLES.CAREGIVER]), deleteAvailability);
+router.delete('/:id', authenticateToken, requireVerifiedCaregiver, deleteAvailability);
 
 // BULK SET - Replace all availability (legacy support)
-router.post('/', authenticateToken, requireRole([USER_ROLES.CAREGIVER]), setAvailability);
+router.post('/', authenticateToken, requireVerifiedCaregiver, setAvailability);
 
 // CLEAR ALL - Delete all availability for caregiver
-router.delete('/', authenticateToken, requireRole([USER_ROLES.CAREGIVER]), clearAllAvailability);
+router.delete('/', authenticateToken, requireVerifiedCaregiver, clearAllAvailability);
 
 module.exports = router;

@@ -2,7 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const { createReport, getReports, getReportById } = require('../controllers/reportController');
 const { authenticateToken } = require('../middleware/auth.middleware');
-const { requireCaregiver } = require('../middleware/roleCheck.middleware');
+const { requireVerifiedCaregiver } = require('../middleware/roleCheck.middleware');
 const { handleValidationErrors } = require('../middleware/validator.middleware');
 const { upload } = require('../middleware/upload.middleware');
 
@@ -18,9 +18,9 @@ const createReportValidation = [
 
 router.use(authenticateToken);
 
-router.post('/', requireCaregiver, upload.array('attachments', 5), createReportValidation, handleValidationErrors, createReport);
+router.post('/', requireVerifiedCaregiver, upload.array('attachments', 5), createReportValidation, handleValidationErrors, createReport);
 router.get('/', getReports);
-router.get('/caregiver', async (req, res, next) => {
+router.get('/caregiver', requireVerifiedCaregiver, async (req, res, next) => {
   try {
     const { CareSessionReport, Appointment, Patient, User, Caregiver } = require('../models');
     

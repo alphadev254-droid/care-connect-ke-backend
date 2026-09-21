@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth.middleware');
+const { requireVerifiedCaregiver } = require('../middleware/roleCheck.middleware');
 const { Patient, User, Caregiver, Appointment } = require('../models');
 
 const router = express.Router();
@@ -7,7 +8,7 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Get patients for caregiver
-router.get('/caregiver', async (req, res, next) => {
+router.get('/caregiver', requireVerifiedCaregiver, async (req, res, next) => {
   try {
     // Find caregiver by user ID
     const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });

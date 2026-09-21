@@ -7,6 +7,7 @@ const {
   deleteCareReport
 } = require('../controllers/careReportController');
 const { authenticateToken } = require('../middleware/auth.middleware');
+const { requireVerifiedCaregiver } = require('../middleware/roleCheck.middleware');
 const { upload } = require('../middleware/upload.middleware');
 
 const router = express.Router();
@@ -14,7 +15,7 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Create or update care report (caregiver only) - with file uploads
-router.post('/', upload.array('attachments', 10), createOrUpdateCareReport);
+router.post('/', requireVerifiedCaregiver, upload.array('attachments', 10), createOrUpdateCareReport);
 
 // Get care report by appointment ID
 router.get('/appointment/:appointmentId', getCareReportByAppointment);
@@ -23,7 +24,7 @@ router.get('/appointment/:appointmentId', getCareReportByAppointment);
 router.get('/patient', getPatientCareReports);
 
 // Get all care reports created by the authenticated caregiver
-router.get('/caregiver', getCaregiverCareReports);
+router.get('/caregiver', requireVerifiedCaregiver, getCaregiverCareReports);
 
 // Delete care report
 router.delete('/:id', deleteCareReport);

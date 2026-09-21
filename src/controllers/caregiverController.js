@@ -2,6 +2,70 @@ const { Caregiver, User, Specialty, TimeSlot, Patient, Appointment, sequelize } 
 const { VERIFICATION_STATUS, TIMESLOT_STATUS } = require('../utils/constants');
 const { Op } = require('sequelize');
 
+const asArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      return [value];
+    }
+  }
+  return [value];
+};
+
+const isAtLeast18 = (dateOfBirth) => {
+  if (!dateOfBirth) return false;
+  const birthDate = new Date(dateOfBirth);
+  if (Number.isNaN(birthDate.getTime())) return false;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 18;
+};
+
+const findOwnCaregiver = async (userId) => Caregiver.findOne({
+  where: { userId },
+  include: [
+    { model: User },
+    { model: Specialty, through: { attributes: [] } }
+  ]
+});
+
+const getVerificationChecklist = (caregiver) => {
+  const data = caregiver?.toJSON ? caregiver.toJSON() : caregiver;
+  return {
+    personal: Boolean(data?.User?.idNumber && isAtLeast18(data?.dateOfBirth)),
+    professional: Boolean(
+      data?.licensingInstitution &&
+      data?.licenseNumber &&
+      !String(data.licenseNumber).startsWith('TEMP-') &&
+      Number(data?.experience) > 0 &&
+      data?.qualifications &&
+      data.qualifications !== 'To be updated' &&
+      (data?.Specialties || []).length > 0
+    ),
+    location: Boolean(
+      data?.region &&
+      data?.district &&
+      asArray(data?.traditionalAuthority).length > 0 &&
+      asArray(data?.village).length > 0
+    ),
+    files: Boolean(
+      data?.profileImage &&
+      asArray(data?.idDocuments).length > 0 &&
+      asArray(data?.supportingDocuments).length > 0
+    )
+  };
+};
+
 const getCaregivers = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, specialtyId, verified = true, includeAvailability } = req.query;
@@ -234,6 +298,146 @@ const updateSpecialties = async (req, res, next) => {
   }
 };
 
+const getVerificationProfile = async (req, res, next) => {
+  try {
+    const caregiver = await findOwnCaregiver(req.user.id);
+
+    if (!caregiver) {
+      return res.status(404).json({ error: 'Caregiver profile not found' });
+    }
+
+    res.json({
+      caregiver,
+      checklist: getVerificationChecklist(caregiver)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateVerificationProfile = async (req, res, next) => {
+  try {
+    const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
+
+    if (!caregiver) {
+      return res.status(404).json({ error: 'Caregiver profile not found' });
+    }
+
+    const {
+      idNumber,
+      dateOfBirth,
+      licensingInstitution,
+      licenseNumber,
+      experience,
+      qualifications,
+      region,
+      district,
+      traditionalAuthority,
+      village,
+      specialtyIds
+    } = req.body;
+
+    const userUpdates = {};
+    if (idNumber !== undefined) userUpdates.idNumber = idNumber;
+    if (Object.keys(userUpdates).length > 0) {
+      await User.update(userUpdates, { where: { id: req.user.id } });
+    }
+
+    const caregiverUpdates = {};
+    if (licensingInstitution !== undefined) caregiverUpdates.licensingInstitution = licensingInstitution;
+    if (dateOfBirth !== undefined) caregiverUpdates.dateOfBirth = dateOfBirth || null;
+    if (dateOfBirth !== undefined && dateOfBirth && !isAtLeast18(dateOfBirth)) {
+      return res.status(400).json({ error: 'Caregiver must be at least 18 years old' });
+    }
+    if (licenseNumber !== undefined) caregiverUpdates.licenseNumber = licenseNumber || `TEMP-${caregiver.id}`;
+    if (experience !== undefined) caregiverUpdates.experience = parseInt(experience, 10) || 0;
+    if (qualifications !== undefined) caregiverUpdates.qualifications = qualifications || 'To be updated';
+    if (region !== undefined) caregiverUpdates.region = region;
+    if (district !== undefined) caregiverUpdates.district = district;
+    if (traditionalAuthority !== undefined) caregiverUpdates.traditionalAuthority = asArray(traditionalAuthority);
+    if (village !== undefined) caregiverUpdates.village = asArray(village);
+    if (Object.keys(caregiverUpdates).length > 0) {
+      await caregiver.update(caregiverUpdates);
+    }
+
+    if (specialtyIds !== undefined) {
+      await caregiver.setSpecialties(asArray(specialtyIds));
+    }
+
+    const updatedCaregiver = await findOwnCaregiver(req.user.id);
+    res.json({
+      caregiver: updatedCaregiver,
+      checklist: getVerificationChecklist(updatedCaregiver)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const uploadVerificationFile = async (req, res, next) => {
+  try {
+    const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
+
+    if (!caregiver) {
+      return res.status(404).json({ error: 'Caregiver profile not found' });
+    }
+
+    const files = req.files || {};
+    const { uploadToCloudinary } = require('../services/cloudinaryService');
+    const updates = {};
+
+    if (files.profilePicture?.[0] || files.profileImage?.[0]) {
+      const file = files.profilePicture?.[0] || files.profileImage?.[0];
+      const uploadResult = await uploadToCloudinary(file, 'caregiver-profiles');
+      updates.profileImage = uploadResult.url;
+    }
+
+    if (files.idDocuments?.length) {
+      const existing = asArray(caregiver.idDocuments);
+      const uploaded = [];
+      for (const file of files.idDocuments.slice(0, Math.max(0, 3 - existing.length))) {
+        const uploadResult = await uploadToCloudinary(file, 'caregiver-ids');
+        uploaded.push({
+          url: uploadResult.url,
+          public_id: uploadResult.public_id,
+          filename: file.originalname,
+          format: uploadResult.format
+        });
+      }
+      updates.idDocuments = [...existing, ...uploaded].slice(0, 3);
+    }
+
+    if (files.supportingDocuments?.length) {
+      const existing = asArray(caregiver.supportingDocuments);
+      const uploaded = [];
+      for (const file of files.supportingDocuments.slice(0, Math.max(0, 5 - existing.length))) {
+        const uploadResult = await uploadToCloudinary(file, 'caregiver-documents');
+        uploaded.push({
+          url: uploadResult.url,
+          public_id: uploadResult.public_id,
+          filename: file.originalname,
+          format: uploadResult.format
+        });
+      }
+      updates.supportingDocuments = [...existing, ...uploaded].slice(0, 5);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No verification file provided' });
+    }
+
+    await caregiver.update(updates);
+
+    const updatedCaregiver = await findOwnCaregiver(req.user.id);
+    res.json({
+      caregiver: updatedCaregiver,
+      checklist: getVerificationChecklist(updatedCaregiver)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getMyPatients = async (req, res, next) => {
   try {
     const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
@@ -269,5 +473,8 @@ module.exports = {
   getProfile,
   updateProfile,
   updateSpecialties,
+  getVerificationProfile,
+  updateVerificationProfile,
+  uploadVerificationFile,
   getMyPatients
 };
