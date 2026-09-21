@@ -110,6 +110,80 @@ router.get('/users', requireAnyPermission(['view_users', 'view_caregivers', 'vie
 router.post('/users', requirePermission('create_users'), createUser);
 router.get('/users/stats', requireAnyPermission(['view_users', 'view_caregivers', 'view_patients', 'view_accountants', 'view_regional_managers', 'view_system_managers']), getUserStats);
 
+router.get('/users/:userId/files/:field/:index', requireAnyPermission(['view_caregivers', 'view_users']), async (req, res, next) => {
+  try {
+    const { User, Role, Caregiver } = require('../models');
+    const { getSignedFileUrl } = require('../services/cloudinaryService');
+    const { userId, field, index } = req.params;
+
+    const currentUser = await User.findByPk(req.user.id, {
+      include: [{ model: Role }]
+    });
+
+    const user = await User.findByPk(userId, {
+      include: [
+        { model: Role },
+        { model: Caregiver, required: false }
+      ]
+    });
+
+    if (!user || !user.Caregiver) {
+      return res.status(404).json({ error: 'Caregiver file not found' });
+    }
+
+    if (currentUser.Role?.name === 'regional_manager' || currentUser.Role?.name === 'Accountant') {
+      if (currentUser.assignedRegion && currentUser.assignedRegion !== 'all' && user.Caregiver.region !== currentUser.assignedRegion) {
+        return res.status(403).json({ error: 'Access denied - user not in your assigned region' });
+      }
+    }
+
+    const getResourceType = (document) => {
+      if (document?.resource_type) return document.resource_type;
+      if (document?.url?.includes('/raw/upload/')) return 'raw';
+      if (document?.url?.includes('/image/upload/')) return 'image';
+      return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(String(document?.format || '').toLowerCase()) ? 'image' : 'raw';
+    };
+
+    let document;
+    if (field === 'profileImage') {
+      document = typeof user.Caregiver.profileImage === 'string'
+        ? { url: user.Caregiver.profileImage, resource_type: 'image' }
+        : user.Caregiver.profileImage;
+    } else if (field === 'idDocuments' || field === 'supportingDocuments') {
+      const documents = Array.isArray(user.Caregiver[field])
+        ? user.Caregiver[field]
+        : JSON.parse(user.Caregiver[field] || '[]');
+      const documentIndex = Number(index);
+
+      if (!Number.isInteger(documentIndex) || documentIndex < 0 || documentIndex >= documents.length) {
+        return res.status(404).json({ error: 'Caregiver file not found' });
+      }
+
+      document = documents[documentIndex];
+    } else {
+      return res.status(400).json({ error: 'Invalid file field' });
+    }
+
+    if (!document?.url && !document?.public_id) {
+      return res.status(404).json({ error: 'Caregiver file not found' });
+    }
+
+    if (!document.public_id) {
+      return res.redirect(document.url);
+    }
+
+    const signedUrl = getSignedFileUrl({
+      public_id: document.public_id,
+      resource_type: getResourceType(document),
+      format: document.format
+    });
+
+    return res.redirect(signedUrl);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Roles Management Routes
 router.get('/roles', requireAnyPermission(['view_roles', 'create_users', 'view_caregivers', 'view_patients', 'view_accountants', 'view_regional_managers', 'view_system_managers']), getAllRoles);
 

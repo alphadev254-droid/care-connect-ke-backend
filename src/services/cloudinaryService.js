@@ -35,7 +35,20 @@ const deleteFromCloudinary = async (public_id) => {
   }
 };
 
+const getSignedFileUrl = ({ public_id, resource_type = 'image', format, expiresInSeconds = 300 }) => {
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
+  return cloudinary.url(public_id, {
+    secure: true,
+    sign_url: true,
+    resource_type,
+    type: 'upload',
+    format,
+    expires_at: expiresAt
+  });
+};
+
 module.exports = {
   uploadToCloudinary,
   deleteFromCloudinary,
+  getSignedFileUrl,
 };

@@ -16,6 +16,46 @@ const asArray = (value) => {
   return [value];
 };
 
+const getVerificationResponse = async (userId) => {
+  const updatedCaregiver = await findOwnCaregiver(userId);
+  return {
+    caregiver: updatedCaregiver,
+    checklist: getVerificationChecklist(updatedCaregiver)
+  };
+};
+
+const normalizeDocument = (document) => {
+  if (!document) return null;
+  if (typeof document === 'string') return { url: document };
+  return document;
+};
+
+const getFileResourceType = (document) => {
+  if (document?.resource_type) return document.resource_type;
+  if (document?.url?.includes('/raw/upload/')) return 'raw';
+  if (document?.url?.includes('/image/upload/')) return 'image';
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(String(document?.format || '').toLowerCase()) ? 'image' : 'raw';
+};
+
+const redirectToVerificationFile = (res, document) => {
+  const normalizedDocument = normalizeDocument(document);
+
+  if (!normalizedDocument?.url && !normalizedDocument?.public_id) {
+    return res.status(404).json({ error: 'Caregiver file not found' });
+  }
+
+  if (!normalizedDocument.public_id) {
+    return res.redirect(normalizedDocument.url);
+  }
+
+  const { getSignedFileUrl } = require('../services/cloudinaryService');
+  return res.redirect(getSignedFileUrl({
+    public_id: normalizedDocument.public_id,
+    resource_type: getFileResourceType(normalizedDocument),
+    format: normalizedDocument.format
+  }));
+};
+
 const isAtLeast18 = (dateOfBirth) => {
   if (!dateOfBirth) return false;
   const birthDate = new Date(dateOfBirth);
@@ -389,22 +429,29 @@ const uploadVerificationFile = async (req, res, next) => {
     if (files.profilePicture?.[0] || files.profileImage?.[0]) {
       const file = files.profilePicture?.[0] || files.profileImage?.[0];
       const uploadResult = await uploadToCloudinary(file, 'caregiver-profiles');
-      updates.profileImage = uploadResult.url;
+      updates.profileImage = {
+        url: uploadResult.url,
+        public_id: uploadResult.public_id,
+        filename: file.originalname,
+        format: uploadResult.format,
+        resource_type: uploadResult.resource_type
+      };
     }
 
     if (files.idDocuments?.length) {
       const existing = asArray(caregiver.idDocuments);
       const uploaded = [];
-      for (const file of files.idDocuments.slice(0, Math.max(0, 3 - existing.length))) {
+      for (const file of files.idDocuments.slice(0, Math.max(0, 2 - existing.length))) {
         const uploadResult = await uploadToCloudinary(file, 'caregiver-ids');
         uploaded.push({
           url: uploadResult.url,
           public_id: uploadResult.public_id,
           filename: file.originalname,
-          format: uploadResult.format
+          format: uploadResult.format,
+          resource_type: uploadResult.resource_type
         });
       }
-      updates.idDocuments = [...existing, ...uploaded].slice(0, 3);
+      updates.idDocuments = [...existing, ...uploaded].slice(0, 2);
     }
 
     if (files.supportingDocuments?.length) {
@@ -416,7 +463,8 @@ const uploadVerificationFile = async (req, res, next) => {
           url: uploadResult.url,
           public_id: uploadResult.public_id,
           filename: file.originalname,
-          format: uploadResult.format
+          format: uploadResult.format,
+          resource_type: uploadResult.resource_type
         });
       }
       updates.supportingDocuments = [...existing, ...uploaded].slice(0, 5);
@@ -428,11 +476,71 @@ const uploadVerificationFile = async (req, res, next) => {
 
     await caregiver.update(updates);
 
-    const updatedCaregiver = await findOwnCaregiver(req.user.id);
-    res.json({
-      caregiver: updatedCaregiver,
-      checklist: getVerificationChecklist(updatedCaregiver)
-    });
+    res.json(await getVerificationResponse(req.user.id));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteVerificationFile = async (req, res, next) => {
+  try {
+    const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
+
+    if (!caregiver) {
+      return res.status(404).json({ error: 'Caregiver profile not found' });
+    }
+
+    const { field, index } = req.body;
+    const updates = {};
+
+    if (field === 'profilePicture' || field === 'profileImage') {
+      updates.profileImage = null;
+    } else if (field === 'idDocuments' || field === 'supportingDocuments') {
+      const documents = asArray(caregiver[field]);
+      const documentIndex = Number(index);
+
+      if (!Number.isInteger(documentIndex) || documentIndex < 0 || documentIndex >= documents.length) {
+        return res.status(400).json({ error: 'Invalid document index' });
+      }
+
+      updates[field] = documents.filter((_, currentIndex) => currentIndex !== documentIndex);
+    } else {
+      return res.status(400).json({ error: 'Invalid verification file field' });
+    }
+
+    await caregiver.update(updates);
+    res.json(await getVerificationResponse(req.user.id));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const viewVerificationFile = async (req, res, next) => {
+  try {
+    const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
+
+    if (!caregiver) {
+      return res.status(404).json({ error: 'Caregiver profile not found' });
+    }
+
+    const { field, index } = req.params;
+
+    if (field === 'profilePicture' || field === 'profileImage') {
+      return redirectToVerificationFile(res, caregiver.profileImage);
+    }
+
+    if (field !== 'idDocuments' && field !== 'supportingDocuments') {
+      return res.status(400).json({ error: 'Invalid file field' });
+    }
+
+    const documents = asArray(caregiver[field]);
+    const documentIndex = Number(index);
+
+    if (!Number.isInteger(documentIndex) || documentIndex < 0 || documentIndex >= documents.length) {
+      return res.status(404).json({ error: 'Caregiver file not found' });
+    }
+
+    return redirectToVerificationFile(res, documents[documentIndex]);
   } catch (error) {
     next(error);
   }
@@ -476,5 +584,7 @@ module.exports = {
   getVerificationProfile,
   updateVerificationProfile,
   uploadVerificationFile,
+  deleteVerificationFile,
+  viewVerificationFile,
   getMyPatients
 };

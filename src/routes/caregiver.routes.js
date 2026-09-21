@@ -8,6 +8,8 @@ const {
   getVerificationProfile,
   updateVerificationProfile,
   uploadVerificationFile,
+  deleteVerificationFile,
+  viewVerificationFile,
   getMyPatients
 } = require('../controllers/caregiverController');
 const { getReferralCode, getStats, sendReferralEmail } = require('../controllers/referralController');
@@ -25,6 +27,8 @@ router.get('/verification', requireCaregiver, getVerificationProfile);
 router.put('/verification', requireCaregiver, updateVerificationProfile);
 router.patch('/verification', requireCaregiver, updateVerificationProfile);
 router.post('/verification/files', requireCaregiver, uploadMultiple, handleMulterError, uploadVerificationFile);
+router.delete('/verification/files', requireCaregiver, deleteVerificationFile);
+router.get('/verification/files/view/:field/:index', requireCaregiver, viewVerificationFile);
 router.get('/my-patients', requireVerifiedCaregiver, getMyPatients);
 router.put('/profile', requireVerifiedCaregiver, updateProfile);
 router.put('/specialties', requireVerifiedCaregiver, updateSpecialties);
