@@ -12,7 +12,8 @@
     "db:migrate-safe": "node -e \"require('./src/scripts/safeMigration')().then(() => process.exit(0)).catch(e => {console.error(e); process.exit(1)})\"",
     "populate-locations": "node src/scripts/populateLocations.js",
     "add-location-fields": "node src/scripts/addLocationFields.js",
-    "add-cancellation-fields": "node src/scripts/addCancellationFields.js"
+    "add-cancellation-fields": "node src/scripts/addCancellationFields.js",
+    "migrate:caregiver-verification": "node src/scripts/addCaregiverDateOfBirth.js"
   },
   "keywords": [],
   "author": "",
