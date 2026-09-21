@@ -57,8 +57,15 @@ const createOrUpdateCareReport = async (req, res, next) => {
             url: uploadResult.url,
             path: uploadResult.url,
             public_id: uploadResult.public_id,
+            id: uploadResult.id,
+            bucket: uploadResult.bucket,
+            key: uploadResult.key,
             size: file.size,
             mimetype: file.mimetype,
+            format: uploadResult.format,
+            resource_type: uploadResult.resource_type,
+            mime: uploadResult.mime,
+            provider: uploadResult.provider,
             uploadedAt: new Date()
           });
 

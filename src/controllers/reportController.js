@@ -25,8 +25,15 @@ const createReport = async (req, res, next) => {
         uploadedAttachments.push({
           url: uploadResult.url,
           public_id: uploadResult.public_id,
+          id: uploadResult.id,
+          bucket: uploadResult.bucket,
+          key: uploadResult.key,
           filename: file.originalname,
-          format: uploadResult.format
+          format: uploadResult.format,
+          resource_type: uploadResult.resource_type,
+          mime: uploadResult.mime,
+          size: uploadResult.size,
+          provider: uploadResult.provider
         });
       }
     }

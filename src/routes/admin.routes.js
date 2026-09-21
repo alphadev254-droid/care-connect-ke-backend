@@ -113,7 +113,7 @@ router.get('/users/stats', requireAnyPermission(['view_users', 'view_caregivers'
 router.get('/users/:userId/files/:field/:index', requireAnyPermission(['view_caregivers', 'view_users']), async (req, res, next) => {
   try {
     const { User, Role, Caregiver } = require('../models');
-    const { getSignedFileUrl, streamCloudinaryFile, getCloudinaryFileFromUrl } = require('../services/cloudinaryService');
+    const { getSignedFileUrl, streamStoredFile, getCloudinaryFileFromUrl, getMediaFileFromUrl } = require('../services/cloudinaryService');
     const { userId, field, index } = req.params;
 
     const currentUser = await User.findByPk(req.user.id, {
@@ -167,12 +167,14 @@ router.get('/users/:userId/files/:field/:index', requireAnyPermission(['view_car
     if (typeof document === 'string') {
       document = {
         url: document,
-        ...getCloudinaryFileFromUrl(document)
+        ...getCloudinaryFileFromUrl(document),
+        ...getMediaFileFromUrl(document)
       };
     } else if (document?.url && !document.public_id) {
       document = {
         ...document,
-        ...getCloudinaryFileFromUrl(document.url)
+        ...getCloudinaryFileFromUrl(document.url),
+        ...getMediaFileFromUrl(document.url)
       };
     }
 
@@ -186,8 +188,9 @@ router.get('/users/:userId/files/:field/:index', requireAnyPermission(['view_car
 
     const resourceType = getResourceType(document);
 
-    if (resourceType !== 'image') {
-      return streamCloudinaryFile(res, {
+    if (document.provider === 'media-server' || document.bucket || resourceType !== 'image') {
+      return streamStoredFile(res, {
+        ...document,
         public_id: document.public_id,
         resource_type: resourceType,
         format: document.format,

@@ -1,6 +1,8 @@
 const { v2: cloudinary } = require('cloudinary');
 const axios = require('axios');
 const crypto = require('crypto');
+const fs = require('fs');
+const FormData = require('form-data');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -9,7 +11,94 @@ cloudinary.config({
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
+const getMediaBaseUrl = () => {
+  const configuredBaseUrl = process.env.MEDIA_BASE_URL || process.env.ALLOWED_MEDIA_BASE_URLS?.split(',')?.[0];
+  return (configuredBaseUrl || 'https://media.aircnc.co.ke').trim().replace(/\/$/, '');
+};
+
+const getMediaApiKey = () => process.env.MEDIA_API_KEY || process.env.API_KEY;
+
+const getMediaClientId = () => process.env.MEDIA_CLIENT_ID || 'care-connect';
+
+const getResourceTypeFromMime = (mime = '') => {
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('audio/')) return 'audio';
+  return 'raw';
+};
+
+const getMediaFileFromUrl = (url) => {
+  if (!url) return null;
+
+  try {
+    const mediaBaseUrl = getMediaBaseUrl();
+    const parsedUrl = new URL(url);
+    const parsedBaseUrl = new URL(mediaBaseUrl);
+
+    if (parsedUrl.host !== parsedBaseUrl.host) return null;
+
+    const [bucket, ...keyParts] = parsedUrl.pathname.split('/').filter(Boolean);
+    if (!bucket || keyParts.length === 0) return null;
+
+    return {
+      provider: 'media-server',
+      bucket,
+      key: decodeURIComponent(keyParts.join('/')),
+      id: decodeURIComponent(keyParts.join('/')),
+      url
+    };
+  } catch {
+    return null;
+  }
+};
+
+const uploadToMediaServer = async (file) => {
+  const mediaBaseUrl = getMediaBaseUrl();
+  const apiKey = getMediaApiKey();
+
+  if (!apiKey) {
+    throw new Error('Media server API key is not configured');
+  }
+
+  const form = new FormData();
+  form.append('file', fs.createReadStream(file.path), {
+    filename: file.originalname,
+    contentType: file.mimetype
+  });
+
+  const response = await axios.post(`${mediaBaseUrl}/upload/`, form, {
+    headers: {
+      'X-API-Key': apiKey,
+      'X-Client-Id': getMediaClientId(),
+      'X-Media-Base-Url': mediaBaseUrl,
+      ...form.getHeaders()
+    },
+    maxBodyLength: Infinity,
+    maxContentLength: Infinity,
+    timeout: 120000
+  });
+
+  const uploaded = response.data;
+  return {
+    url: uploaded.url,
+    public_id: uploaded.id,
+    id: uploaded.id,
+    bucket: uploaded.bucket,
+    key: uploaded.id,
+    filename: file.originalname,
+    format: uploaded.id?.split('.').pop(),
+    resource_type: getResourceTypeFromMime(uploaded.mime || file.mimetype),
+    mime: uploaded.mime || file.mimetype,
+    size: uploaded.size || file.size,
+    provider: 'media-server'
+  };
+};
+
 const uploadToCloudinary = async (file, folder = 'caregiver-documents') => {
+  if (getMediaApiKey()) {
+    return uploadToMediaServer(file);
+  }
+
   try {
     const result = await cloudinary.uploader.upload(file.path, {
       folder: folder,
@@ -31,9 +120,18 @@ const uploadToCloudinary = async (file, folder = 'caregiver-documents') => {
 
 const deleteFromCloudinary = async (public_id) => {
   try {
+    if (typeof public_id === 'object' && public_id?.provider === 'media-server') {
+      const mediaBaseUrl = getMediaBaseUrl();
+      await axios.delete(`${mediaBaseUrl}/upload/${public_id.bucket}/${public_id.key || public_id.id}`, {
+        headers: { 'X-API-Key': getMediaApiKey() },
+        timeout: 30000
+      });
+      return;
+    }
+
     await cloudinary.uploader.destroy(public_id);
   } catch (error) {
-    console.error('Cloudinary delete error:', error);
+    console.error('Media delete error:', error);
   }
 };
 
@@ -150,11 +248,57 @@ const streamCloudinaryFile = async (res, { public_id, resource_type = 'raw', for
   response.data.pipe(res);
 };
 
+const streamMediaServerFile = async (res, document) => {
+  const mediaFile = document?.bucket
+    ? document
+    : getMediaFileFromUrl(document?.url);
+
+  if (!mediaFile?.url) {
+    return res.status(404).json({ error: 'Media file not found' });
+  }
+
+  const response = await axios.get(mediaFile.url, {
+    responseType: 'stream',
+    timeout: 30000
+  });
+
+  if (response.headers['content-type']) {
+    res.setHeader('Content-Type', response.headers['content-type']);
+  }
+
+  if (response.headers['content-length']) {
+    res.setHeader('Content-Length', response.headers['content-length']);
+  }
+
+  const filename = document.filename || mediaFile.key || mediaFile.id;
+  if (filename) {
+    res.setHeader('Content-Disposition', `inline; filename="${String(filename).replace(/"/g, '')}"`);
+  }
+
+  response.data.pipe(res);
+};
+
+const streamStoredFile = async (res, document) => {
+  const mediaFile = document?.provider === 'media-server' || document?.bucket || getMediaFileFromUrl(document?.url);
+
+  if (mediaFile) {
+    return streamMediaServerFile(res, {
+      ...document,
+      ...mediaFile
+    });
+  }
+
+  return streamCloudinaryFile(res, document);
+};
+
 module.exports = {
   uploadToCloudinary,
   deleteFromCloudinary,
   getSignedFileUrl,
   getCloudinaryFileFromUrl,
+  getMediaFileFromUrl,
   getSignedDownloadUrl,
   streamCloudinaryFile,
+  streamMediaServerFile,
+  streamStoredFile,
 };

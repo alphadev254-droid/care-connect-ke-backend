@@ -182,9 +182,15 @@ const register = asyncHandler(async (req, res, next) => {
                 documentUrls.push({
                   url: uploadResult.url,
                   public_id: uploadResult.public_id,
+                  id: uploadResult.id,
+                  bucket: uploadResult.bucket,
+                  key: uploadResult.key,
                   filename: file.originalname,
                   format: uploadResult.format,
-                  resource_type: uploadResult.resource_type
+                  resource_type: uploadResult.resource_type,
+                  mime: uploadResult.mime,
+                  size: uploadResult.size,
+                  provider: uploadResult.provider
                 });
               } catch (uploadError) {
                 console.error('Supporting document upload failed:', uploadError);
@@ -196,7 +202,7 @@ const register = asyncHandler(async (req, res, next) => {
           if (uploadedFiles.profilePicture && uploadedFiles.profilePicture[0]) {
             try {
               const uploadResult = await uploadToCloudinary(uploadedFiles.profilePicture[0], 'caregiver-profiles');
-              profilePictureUrl = uploadResult.url; // Store just the URL string
+              profilePictureUrl = uploadResult.url;
             } catch (uploadError) {
               console.error('Profile picture upload failed:', uploadError);
             }
@@ -210,9 +216,15 @@ const register = asyncHandler(async (req, res, next) => {
                 idDocumentUrls.push({
                   url: uploadResult.url,
                   public_id: uploadResult.public_id,
+                  id: uploadResult.id,
+                  bucket: uploadResult.bucket,
+                  key: uploadResult.key,
                   filename: file.originalname,
                   format: uploadResult.format,
-                  resource_type: uploadResult.resource_type
+                  resource_type: uploadResult.resource_type,
+                  mime: uploadResult.mime,
+                  size: uploadResult.size,
+                  provider: uploadResult.provider
                 });
               } catch (uploadError) {
                 console.error('ID document upload failed:', uploadError);

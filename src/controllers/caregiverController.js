@@ -27,17 +27,19 @@ const getVerificationResponse = async (userId) => {
 const normalizeDocument = (document) => {
   if (!document) return null;
   if (typeof document === 'string') {
-    const { getCloudinaryFileFromUrl } = require('../services/cloudinaryService');
+    const { getCloudinaryFileFromUrl, getMediaFileFromUrl } = require('../services/cloudinaryService');
     return {
       url: document,
-      ...getCloudinaryFileFromUrl(document)
+      ...getCloudinaryFileFromUrl(document),
+      ...getMediaFileFromUrl(document)
     };
   }
   if (document.url && !document.public_id) {
-    const { getCloudinaryFileFromUrl } = require('../services/cloudinaryService');
+    const { getCloudinaryFileFromUrl, getMediaFileFromUrl } = require('../services/cloudinaryService');
     return {
       ...document,
-      ...getCloudinaryFileFromUrl(document.url)
+      ...getCloudinaryFileFromUrl(document.url),
+      ...getMediaFileFromUrl(document.url)
     };
   }
   return document;
@@ -61,11 +63,12 @@ const redirectToVerificationFile = async (res, document) => {
     return res.redirect(normalizedDocument.url);
   }
 
-  const { getSignedFileUrl, streamCloudinaryFile } = require('../services/cloudinaryService');
+  const { getSignedFileUrl, streamStoredFile } = require('../services/cloudinaryService');
   const resourceType = getFileResourceType(normalizedDocument);
 
-  if (resourceType !== 'image') {
-    return streamCloudinaryFile(res, {
+  if (normalizedDocument.provider === 'media-server' || normalizedDocument.bucket || resourceType !== 'image') {
+    return streamStoredFile(res, {
+      ...normalizedDocument,
       public_id: normalizedDocument.public_id,
       resource_type: resourceType,
       format: normalizedDocument.format,
@@ -453,13 +456,7 @@ const uploadVerificationFile = async (req, res, next) => {
     if (files.profilePicture?.[0] || files.profileImage?.[0]) {
       const file = files.profilePicture?.[0] || files.profileImage?.[0];
       const uploadResult = await uploadToCloudinary(file, 'caregiver-profiles');
-      updates.profileImage = {
-        url: uploadResult.url,
-        public_id: uploadResult.public_id,
-        filename: file.originalname,
-        format: uploadResult.format,
-        resource_type: uploadResult.resource_type
-      };
+      updates.profileImage = uploadResult.url;
     }
 
     if (files.idDocuments?.length) {
@@ -470,9 +467,15 @@ const uploadVerificationFile = async (req, res, next) => {
         uploaded.push({
           url: uploadResult.url,
           public_id: uploadResult.public_id,
+          id: uploadResult.id,
+          bucket: uploadResult.bucket,
+          key: uploadResult.key,
           filename: file.originalname,
           format: uploadResult.format,
-          resource_type: uploadResult.resource_type
+          resource_type: uploadResult.resource_type,
+          mime: uploadResult.mime,
+          size: uploadResult.size,
+          provider: uploadResult.provider
         });
       }
       updates.idDocuments = [...existing, ...uploaded].slice(0, 2);
@@ -486,9 +489,15 @@ const uploadVerificationFile = async (req, res, next) => {
         uploaded.push({
           url: uploadResult.url,
           public_id: uploadResult.public_id,
+          id: uploadResult.id,
+          bucket: uploadResult.bucket,
+          key: uploadResult.key,
           filename: file.originalname,
           format: uploadResult.format,
-          resource_type: uploadResult.resource_type
+          resource_type: uploadResult.resource_type,
+          mime: uploadResult.mime,
+          size: uploadResult.size,
+          provider: uploadResult.provider
         });
       }
       updates.supportingDocuments = [...existing, ...uploaded].slice(0, 5);
