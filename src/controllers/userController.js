@@ -71,6 +71,7 @@ const updateProfile = async (req, res, next) => {
       district,
       traditionalAuthority,
       village,
+      removeProfileImage,
       ...otherData 
     } = req.body;
     const uploadedFiles = req.files || {};
@@ -112,7 +113,7 @@ const updateProfile = async (req, res, next) => {
       
       await user.Caregiver.update(caregiverData);
       
-      // Handle profile image upload
+      // Handle profile image upload/removal. This is normal profile data, not locked verification evidence.
       if (uploadedFiles.profileImage) {
         try {
           const { uploadToCloudinary } = require('../services/cloudinaryService');
@@ -123,6 +124,8 @@ const updateProfile = async (req, res, next) => {
         } catch (uploadError) {
           console.error('Profile image upload failed:', uploadError);
         }
+      } else if (removeProfileImage === 'true' || removeProfileImage === true) {
+        await user.Caregiver.update({ profileImage: null });
       }
     }
 
