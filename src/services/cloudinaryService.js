@@ -11,9 +11,30 @@ cloudinary.config({
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
+const normalizeMediaUrl = (value) => {
+  if (!value) return null;
+  const match = String(value).match(/https?:\/\/[^"'\]\s)]+/);
+  return match ? match[0].replace(/\/$/, '') : null;
+};
+
+const getFirstAllowedMediaBaseUrl = () => {
+  const configured = process.env.MEDIA_BASE_URL || process.env.ALLOWED_MEDIA_BASE_URLS;
+
+  if (!configured) return null;
+
+  try {
+    const parsed = JSON.parse(configured);
+    if (Array.isArray(parsed)) {
+      return normalizeMediaUrl(parsed[0]);
+    }
+    return normalizeMediaUrl(parsed);
+  } catch {
+    return normalizeMediaUrl(configured);
+  }
+};
+
 const getMediaBaseUrl = () => {
-  const configuredBaseUrl = process.env.MEDIA_BASE_URL || process.env.ALLOWED_MEDIA_BASE_URLS?.split(',')?.[0];
-  return (configuredBaseUrl || 'https://media.aircnc.co.ke').trim().replace(/\/$/, '');
+  return getFirstAllowedMediaBaseUrl() || 'https://media.aircnc.co.ke';
 };
 
 const getMediaApiKey = () => process.env.MEDIA_API_KEY || process.env.API_KEY;
@@ -66,17 +87,29 @@ const uploadToMediaServer = async (file) => {
     contentType: file.mimetype
   });
 
-  const response = await axios.post(`${mediaBaseUrl}/upload/`, form, {
-    headers: {
-      'X-API-Key': apiKey,
-      'X-Client-Id': getMediaClientId(),
-      'X-Media-Base-Url': mediaBaseUrl,
-      ...form.getHeaders()
-    },
-    maxBodyLength: Infinity,
-    maxContentLength: Infinity,
-    timeout: 120000
-  });
+  let response;
+  try {
+    response = await axios.post(`${mediaBaseUrl}/upload/`, form, {
+      headers: {
+        'X-API-Key': apiKey,
+        'X-Client-Id': getMediaClientId(),
+        'X-Media-Base-Url': mediaBaseUrl,
+        ...form.getHeaders()
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+      timeout: 120000
+    });
+  } catch (error) {
+    console.error('Media server upload failed:', {
+      baseUrl: mediaBaseUrl,
+      status: error.response?.status,
+      code: error.code,
+      message: error.message,
+      response: error.response?.data
+    });
+    throw new Error('Failed to upload file to media server');
+  }
 
   const uploaded = response.data;
   return {
