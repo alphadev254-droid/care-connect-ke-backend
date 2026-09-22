@@ -1,5 +1,6 @@
 const { Caregiver, User, Specialty, TimeSlot, Patient, Appointment, sequelize } = require('../models');
 const { VERIFICATION_STATUS, TIMESLOT_STATUS } = require('../utils/constants');
+const { sanitizeCaregiverFiles } = require('../utils/helpers');
 const { Op } = require('sequelize');
 
 const asArray = (value) => {
@@ -21,7 +22,7 @@ const asArray = (value) => {
 const getVerificationResponse = async (userId) => {
   const updatedCaregiver = await findOwnCaregiver(userId);
   return {
-    caregiver: updatedCaregiver,
+    caregiver: sanitizeCaregiverFiles(updatedCaregiver.toJSON ? updatedCaregiver.toJSON() : updatedCaregiver),
     checklist: getVerificationChecklist(updatedCaregiver)
   };
 };
@@ -376,7 +377,7 @@ const getVerificationProfile = async (req, res, next) => {
     }
 
     res.json({
-      caregiver,
+      caregiver: sanitizeCaregiverFiles(caregiver.toJSON ? caregiver.toJSON() : caregiver),
       checklist: getVerificationChecklist(caregiver)
     });
   } catch (error) {
@@ -435,7 +436,7 @@ const updateVerificationProfile = async (req, res, next) => {
 
     const updatedCaregiver = await findOwnCaregiver(req.user.id);
     res.json({
-      caregiver: updatedCaregiver,
+      caregiver: sanitizeCaregiverFiles(updatedCaregiver.toJSON ? updatedCaregiver.toJSON() : updatedCaregiver),
       checklist: getVerificationChecklist(updatedCaregiver)
     });
   } catch (error) {
