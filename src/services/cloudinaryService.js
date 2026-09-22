@@ -286,11 +286,25 @@ const streamMediaServerFile = async (res, document) => {
     ? document
     : getMediaFileFromUrl(document?.url);
 
-  if (!mediaFile?.url) {
+  if (!mediaFile?.bucket || !(mediaFile.key || mediaFile.id)) {
     return res.status(404).json({ error: 'Media file not found' });
   }
 
-  const response = await axios.get(mediaFile.url, {
+  const mediaBaseUrl = getMediaBaseUrl();
+  const signedResponse = await axios.get(
+    `${mediaBaseUrl}/media/signed/${encodeURIComponent(mediaFile.bucket)}/${encodeURIComponent(mediaFile.key || mediaFile.id)}?expires=3600`,
+    {
+      headers: { 'X-API-Key': getMediaApiKey() },
+      timeout: 30000
+    }
+  );
+
+  const signedUrl = signedResponse.data?.url;
+  if (!signedUrl) {
+    return res.status(404).json({ error: 'Media file not found' });
+  }
+
+  const response = await axios.get(signedUrl, {
     responseType: 'stream',
     timeout: 30000
   });
