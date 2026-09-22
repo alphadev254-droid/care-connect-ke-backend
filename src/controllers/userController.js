@@ -1,6 +1,12 @@
 const { User, Patient, Caregiver, PrimaryPhysician, Role, UserSettings } = require('../models');
 const { sanitizeUser } = require('../utils/helpers');
 
+const isVerifiedCaregiverStatus = (status) => ['APPROVED', 'verified'].includes(status);
+
+const caregiverProfileAttributes = {
+  exclude: ['idDocuments', 'supportingDocuments']
+};
+
 const getProfile = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.user.id, {
@@ -16,9 +22,7 @@ const getProfile = async (req, res, next) => {
         { 
           model: Caregiver, 
           required: false,
-          attributes: {
-            include: ['profileImage', 'idDocuments', 'supportingDocuments'] // Include file fields
-          }
+          attributes: caregiverProfileAttributes
         },
         { model: PrimaryPhysician, required: false }
       ]
@@ -81,6 +85,15 @@ const updateProfile = async (req, res, next) => {
         { model: PrimaryPhysician, required: false }
       ]
     });
+
+    if (
+      user.Role.name === 'caregiver' &&
+      user.Caregiver &&
+      uploadedFiles.profileImage &&
+      isVerifiedCaregiverStatus(user.Caregiver.verificationStatus)
+    ) {
+      return res.status(403).json({ error: 'Verification files cannot be changed after approval' });
+    }
     
     // Update user basic info
     await user.update({
@@ -138,9 +151,7 @@ const updateProfile = async (req, res, next) => {
         { 
           model: Caregiver, 
           required: false,
-          attributes: {
-            include: ['profileImage', 'idDocuments', 'supportingDocuments']
-          }
+          attributes: caregiverProfileAttributes
         },
         { model: PrimaryPhysician, required: false }
       ]

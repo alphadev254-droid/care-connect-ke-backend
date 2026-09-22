@@ -19,6 +19,8 @@ const asArray = (value) => {
   return [value];
 };
 
+const isLockedVerificationStatus = (status) => ['APPROVED', 'verified'].includes(status);
+
 const getVerificationResponse = async (userId) => {
   const updatedCaregiver = await findOwnCaregiver(userId);
   return {
@@ -393,6 +395,10 @@ const updateVerificationProfile = async (req, res, next) => {
       return res.status(404).json({ error: 'Caregiver profile not found' });
     }
 
+    if (isLockedVerificationStatus(caregiver.verificationStatus)) {
+      return res.status(403).json({ error: 'Verification details cannot be changed after approval' });
+    }
+
     const {
       idNumber,
       dateOfBirth,
@@ -450,6 +456,10 @@ const uploadVerificationFile = async (req, res, next) => {
 
     if (!caregiver) {
       return res.status(404).json({ error: 'Caregiver profile not found' });
+    }
+
+    if (isLockedVerificationStatus(caregiver.verificationStatus)) {
+      return res.status(403).json({ error: 'Verification files cannot be changed after approval' });
     }
 
     const files = req.files || {};
@@ -524,6 +534,10 @@ const deleteVerificationFile = async (req, res, next) => {
 
     if (!caregiver) {
       return res.status(404).json({ error: 'Caregiver profile not found' });
+    }
+
+    if (isLockedVerificationStatus(caregiver.verificationStatus)) {
+      return res.status(403).json({ error: 'Verification files cannot be changed after approval' });
     }
 
     const { field, index } = req.body;
