@@ -8,7 +8,9 @@ const asArray = (value) => {
   if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : [parsed];
+      if (Array.isArray(parsed)) return parsed;
+      if (typeof parsed === 'string' && parsed !== value) return asArray(parsed);
+      return parsed ? [parsed] : [];
     } catch {
       return [value];
     }

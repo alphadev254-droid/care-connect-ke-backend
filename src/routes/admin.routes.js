@@ -144,15 +144,29 @@ router.get('/users/:userId/files/:field/:index', requireAnyPermission(['view_car
       return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(String(document?.format || '').toLowerCase()) ? 'image' : 'raw';
     };
 
+    const asArray = (value) => {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) return parsed;
+          if (typeof parsed === 'string' && parsed !== value) return asArray(parsed);
+          return parsed ? [parsed] : [];
+        } catch {
+          return [value];
+        }
+      }
+      return [value];
+    };
+
     let document;
     if (field === 'profileImage') {
       document = typeof user.Caregiver.profileImage === 'string'
         ? { url: user.Caregiver.profileImage, resource_type: 'image' }
         : user.Caregiver.profileImage;
     } else if (field === 'idDocuments' || field === 'supportingDocuments') {
-      const documents = Array.isArray(user.Caregiver[field])
-        ? user.Caregiver[field]
-        : JSON.parse(user.Caregiver[field] || '[]');
+      const documents = asArray(user.Caregiver[field]);
       const documentIndex = Number(index);
 
       if (!Number.isInteger(documentIndex) || documentIndex < 0 || documentIndex >= documents.length) {
