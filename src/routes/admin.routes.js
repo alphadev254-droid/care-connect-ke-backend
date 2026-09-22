@@ -1,5 +1,5 @@
 const express = require('express');
-const { getPendingCaregivers, verifyCaregiver, rejectCaregiver, toggleUserStatus, getAllUsers, getUserStats, getAllRoles, updateUser, getAllPermissions, updateRolePermissions, createUser, sendEmailToCaregiver } = require('../controllers/adminController');
+const { getPendingCaregivers, verifyCaregiver, revokeCaregiverVerification, rejectCaregiver, toggleUserStatus, getAllUsers, getUserStats, getAllRoles, updateUser, getAllPermissions, updateRolePermissions, createUser, sendEmailToCaregiver } = require('../controllers/adminController');
 const { authenticateToken } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/roleCheck.middleware');
 const { requirePermission, requireAnyPermission } = require('../middleware/permissions');
@@ -103,6 +103,7 @@ router.get('/caregivers/pending-verification', requirePermission('view_caregiver
   }
 });
 router.put('/caregivers/:userId/verify', requirePermission('approve_caregivers'), verifyCaregiver);
+router.put('/caregivers/:userId/revoke-verification', requirePermission('approve_caregivers'), revokeCaregiverVerification);
 router.put('/caregivers/:userId/reject', requirePermission('approve_caregivers'), rejectCaregiver);
 router.post('/caregivers/:userId/send-email', requireAnyPermission(['edit_caregivers', 'approve_caregivers']), sendEmailToCaregiver);
 router.put('/users/:userId/toggle-status', requireAnyPermission(['edit_caregivers', 'edit_patients', 'edit_accountants', 'edit_regional_managers']), toggleUserStatus);

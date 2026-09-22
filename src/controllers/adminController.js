@@ -69,6 +69,43 @@ const verifyCaregiver = async (req, res, next) => {
   }
 };
 
+const revokeCaregiverVerification = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findByPk(userId, {
+      include: [{ model: Caregiver }]
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.Caregiver) {
+      return res.status(400).json({ error: 'User is not a caregiver' });
+    }
+
+    await user.Caregiver.update({ verificationStatus: 'PENDING' });
+
+    try {
+      await NotificationHelper.createCaregiverVerificationNotifications(
+        user.id,
+        'PENDING',
+        user.Caregiver.region
+      );
+    } catch (notificationError) {
+      console.error('Failed to create verification revoke notification:', notificationError);
+    }
+
+    res.json({
+      message: 'Caregiver verification revoked',
+      user: sanitizeUser(user)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const rejectCaregiver = async (req, res, next) => {
   try {
     const { userId } = req.params;
@@ -213,13 +250,17 @@ const getAllUsers = async (req, res, next) => {
       roleWhere.name = { [Op.in]: allowedRoles };
     }
     
+    const verificationStatusMap = {
+      pending: ['PENDING', 'pending'],
+      verified: ['APPROVED', 'verified'],
+      rejected: ['REJECTED', 'rejected']
+    };
+
     // Handle status filter
     let caregiverStatusWhere = {};
     if (status && status !== 'all') {
-      if (status === 'rejected') {
-        // For rejected status, filter caregivers with REJECTED verification status
-        caregiverStatusWhere.verificationStatus = 'REJECTED';
-        // Only show caregivers for rejected status
+      if (verificationStatusMap[status]) {
+        caregiverStatusWhere.verificationStatus = { [Op.in]: verificationStatusMap[status] };
         roleWhere.name = 'caregiver';
       } else {
         // For active/inactive, filter by user's isActive status
@@ -316,8 +357,8 @@ const getAllUsers = async (req, res, next) => {
             WHERE r.name IN (:allowedRoles)
             AND (${regionConditions.join(' OR ')})
             ${search ? 'AND (u.firstName LIKE :search OR u.lastName LIKE :search OR u.email LIKE :search)' : ''}
-            ${status && status !== 'all' && status !== 'rejected' ? 'AND u.isActive = :isActive' : ''}
-            ${status === 'rejected' ? 'AND c.verificationStatus = \'REJECTED\'' : ''}
+            ${status && status !== 'all' && !verificationStatusMap[status] ? 'AND u.isActive = :isActive' : ''}
+            ${verificationStatusMap[status] ? 'AND c.verificationStatus IN (:verificationStatuses)' : ''}
             ORDER BY u.createdAt DESC
             LIMIT :limit OFFSET :offset
           `, {
@@ -325,7 +366,8 @@ const getAllUsers = async (req, res, next) => {
               allowedRoles: rolesBeingQueried,
               regionFilter,
               ...(search && { search: `%${search}%` }),
-              ...(status && status !== 'all' && status !== 'rejected' && { isActive: status === 'active' }),
+              ...(status && status !== 'all' && !verificationStatusMap[status] && { isActive: status === 'active' }),
+              ...(verificationStatusMap[status] && { verificationStatuses: verificationStatusMap[status] }),
               limit: parseInt(limit),
               offset
             },
@@ -348,14 +390,15 @@ const getAllUsers = async (req, res, next) => {
             WHERE r.name IN (:allowedRoles)
             AND (${regionConditions.join(' OR ')})
             ${search ? 'AND (u.firstName LIKE :search OR u.lastName LIKE :search OR u.email LIKE :search)' : ''}
-            ${status && status !== 'all' && status !== 'rejected' ? 'AND u.isActive = :isActive' : ''}
-            ${status === 'rejected' ? 'AND c.verificationStatus = \'REJECTED\'' : ''}
+            ${status && status !== 'all' && !verificationStatusMap[status] ? 'AND u.isActive = :isActive' : ''}
+            ${verificationStatusMap[status] ? 'AND c.verificationStatus IN (:verificationStatuses)' : ''}
           `, {
             replacements: {
               allowedRoles: rolesBeingQueried,
               regionFilter,
               ...(search && { search: `%${search}%` }),
-              ...(status && status !== 'all' && status !== 'rejected' && { isActive: status === 'active' })
+              ...(status && status !== 'all' && !verificationStatusMap[status] && { isActive: status === 'active' }),
+              ...(verificationStatusMap[status] && { verificationStatuses: verificationStatusMap[status] })
             },
             type: sequelize.QueryTypes.SELECT
           });
@@ -913,6 +956,7 @@ const sendEmailToCaregiver = async (req, res, next) => {
 module.exports = {
   getPendingCaregivers,
   verifyCaregiver,
+  revokeCaregiverVerification,
   rejectCaregiver,
   toggleUserStatus,
   getAllUsers,
