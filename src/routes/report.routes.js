@@ -10,10 +10,10 @@ const router = express.Router();
 
 const createReportValidation = [
   body('appointmentId').isInt(),
-  body('observations').trim().notEmpty(),
-  body('interventions').trim().notEmpty(),
-  body('patientStatus').isIn(['stable', 'improving', 'deteriorating', 'critical', 'cured', 'deceased']),
-  body('sessionSummary').trim().notEmpty()
+  body('sessionStatus').trim().notEmpty(),
+  body('sessionOutcome').trim().notEmpty(),
+  body('safetyIncident').trim().notEmpty(),
+  body('caregiverConfirmed').custom((value) => value === true || value === 'true')
 ];
 
 router.use(authenticateToken);

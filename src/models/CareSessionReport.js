@@ -74,6 +74,61 @@ const CareSessionReport = sequelize.define('CareSessionReport', {
     type: DataTypes.TEXT,
     allowNull: true,
     comment: 'Additional notes from caregiver'
+  },
+  actualCheckIn: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'actual_check_in'
+  },
+  actualCheckOut: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'actual_check_out'
+  },
+  sessionStatus: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'session_status'
+  },
+  sessionStatusReason: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'session_status_reason'
+  },
+  careProvided: {
+    type: DataTypes.JSON,
+    defaultValue: [],
+    field: 'care_provided'
+  },
+  sessionOutcome: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'session_outcome'
+  },
+  incompleteReason: {
+    type: DataTypes.JSON,
+    defaultValue: [],
+    field: 'incomplete_reason'
+  },
+  additionalAssistance: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'additional_assistance'
+  },
+  safetyIncident: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'safety_incident'
+  },
+  followUpActions: {
+    type: DataTypes.JSON,
+    defaultValue: [],
+    field: 'follow_up_actions'
+  },
+  caregiverConfirmed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'caregiver_confirmed'
   }
 }, {
   tableName: 'caresessionreports'

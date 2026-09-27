@@ -1,94 +1,190 @@
-const { CareSessionReport, Appointment, Patient, Caregiver, User } = require('../models');
-const { createStatusAlert } = require('../services/notificationService');
-const { uploadToCloudinary } = require('../services/cloudinaryService');
-const { PATIENT_STATUS, APPOINTMENT_STATUS } = require('../utils/constants');
+const {
+  CareSessionReport,
+  Appointment,
+  Patient,
+  Caregiver,
+  User,
+  Specialty,
+  TimeSlot,
+  PaymentTransaction,
+  CaregiverEarnings,
+  sequelize
+} = require('../models');
+const { USER_ROLES, APPOINTMENT_STATUS, PAYMENT_STATUS } = require('../utils/constants');
+
+const parseJsonArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return value ? [value] : [];
+    }
+  }
+  return [];
+};
+
+const parseNullableDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const unlockCaregiverEarnings = async ({ appointmentId, caregiverId }) => {
+  const sessionFeePayment = await PaymentTransaction.findOne({
+    where: {
+      appointmentId,
+      paymentType: 'session_fee',
+      status: PAYMENT_STATUS.COMPLETED
+    }
+  });
+
+  if (!sessionFeePayment || Number(sessionFeePayment.caregiverEarnings) <= 0) return;
+
+  const unlockAmount = Number(sessionFeePayment.caregiverEarnings);
+  const transaction = await sequelize.transaction();
+
+  try {
+    const earnings = await CaregiverEarnings.findOne({
+      where: { caregiverId },
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+
+    if (earnings && Number(earnings.lockedBalance) >= unlockAmount) {
+      await earnings.update({
+        lockedBalance: Number(earnings.lockedBalance) - unlockAmount,
+        walletBalance: Number(earnings.walletBalance) + unlockAmount
+      }, { transaction });
+    }
+
+    await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+const getReportIncludes = () => [
+  {
+    model: Appointment,
+    include: [
+      { model: Patient, include: [{ model: User }] },
+      {
+        model: Caregiver,
+        include: [{ model: User, attributes: ['firstName', 'lastName', 'email'] }]
+      },
+      { model: Specialty },
+      { model: TimeSlot }
+    ]
+  }
+];
 
 const createReport = async (req, res, next) => {
   try {
     const {
       appointmentId,
-      observations,
-      interventions,
-      vitals,
-      patientStatus,
-      sessionSummary,
-      recommendations,
-      followUpRequired,
-      followUpDate
+      actualCheckIn,
+      actualCheckOut,
+      sessionStatus,
+      sessionStatusReason,
+      careProvided,
+      sessionOutcome,
+      incompleteReason,
+      additionalAssistance,
+      safetyIncident,
+      followUpActions,
+      caregiverConfirmed
     } = req.body;
 
-    // Handle file uploads
-    let uploadedAttachments = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const uploadResult = await uploadToCloudinary(file, 'care-reports');
-        uploadedAttachments.push({
-          url: uploadResult.url,
-          public_id: uploadResult.public_id,
-          id: uploadResult.id,
-          bucket: uploadResult.bucket,
-          key: uploadResult.key,
-          filename: file.originalname,
-          format: uploadResult.format,
-          resource_type: uploadResult.resource_type,
-          mime: uploadResult.mime,
-          size: uploadResult.size,
-          provider: uploadResult.provider
-        });
-      }
+    const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
+    if (!caregiver) {
+      return res.status(403).json({ error: 'Only caregivers can create care reports' });
     }
 
-    // Verify appointment exists and belongs to caregiver
     const appointment = await Appointment.findByPk(appointmentId, {
-      include: [{ model: Patient, include: [{ model: User }] }]
+      include: [{ model: TimeSlot }, { model: Patient, include: [{ model: User }] }]
     });
 
     if (!appointment) {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    const report = await CareSessionReport.create({
+    if (appointment.caregiverId !== caregiver.id) {
+      return res.status(403).json({ error: 'Unauthorized - this appointment does not belong to you' });
+    }
+
+    if (appointment.sessionFeeStatus !== PAYMENT_STATUS.COMPLETED) {
+      return res.status(400).json({ error: 'Session fee must be paid before creating a care report' });
+    }
+
+    const normalizedSessionStatus = sessionStatus || '';
+    const normalizedSessionOutcome = sessionOutcome || '';
+    const normalizedSafetyIncident = safetyIncident || '';
+    const normalizedFollowUpActions = parseJsonArray(followUpActions);
+
+    if (!normalizedSessionStatus || !normalizedSessionOutcome || !normalizedSafetyIncident) {
+      return res.status(400).json({ error: 'Session status, outcome, and safety/incident fields are required' });
+    }
+
+    if (caregiverConfirmed !== true && caregiverConfirmed !== 'true') {
+      return res.status(400).json({ error: 'Caregiver confirmation is required' });
+    }
+
+    const reportData = {
       appointmentId,
-      observations,
-      interventions,
-      vitals: typeof vitals === 'string' ? JSON.parse(vitals) : vitals,
-      patientStatus,
-      sessionSummary,
-      recommendations,
-      followUpRequired: followUpRequired === 'true',
-      followUpDate: followUpDate || null,
-      attachments: uploadedAttachments
-    });
+      actualCheckIn: parseNullableDate(actualCheckIn),
+      actualCheckOut: parseNullableDate(actualCheckOut),
+      sessionStatus: normalizedSessionStatus,
+      sessionStatusReason: sessionStatusReason || null,
+      careProvided: parseJsonArray(careProvided),
+      sessionOutcome: normalizedSessionOutcome,
+      incompleteReason: parseJsonArray(incompleteReason),
+      additionalAssistance: additionalAssistance || null,
+      safetyIncident: normalizedSafetyIncident,
+      followUpActions: normalizedFollowUpActions,
+      caregiverConfirmed: true,
+      followUpRequired: normalizedFollowUpActions.some((action) => action !== 'none'),
+      patientStatus: null,
+      observations: null,
+      interventions: null,
+      sessionSummary: null,
+      recommendations: null,
+      medications: null,
+      activities: null,
+      notes: null,
+      vitals: {},
+      attachments: []
+    };
 
-    // Update appointment status to completed
-    appointment.status = APPOINTMENT_STATUS.COMPLETED;
-    await appointment.save();
+    let report = await CareSessionReport.findOne({ where: { appointmentId } });
+    const isNewReport = !report;
 
-    // Create status alert if needed
-    if ([PATIENT_STATUS.DETERIORATING, PATIENT_STATUS.CRITICAL, PATIENT_STATUS.DECEASED].includes(patientStatus)) {
+    if (report) {
+      await report.update(reportData);
+    } else {
+      report = await CareSessionReport.create(reportData);
+    }
+
+    if (appointment.status !== APPOINTMENT_STATUS.SESSION_ATTENDED) {
+      await appointment.update({ status: APPOINTMENT_STATUS.SESSION_ATTENDED });
+    }
+
+    if (isNewReport) {
       try {
-        // Use patient's email from User table
-        const patientEmail = appointment.Patient.User.email;
-        if (patientEmail && patientEmail.includes('@') && patientEmail.includes('.')) {
-          await createStatusAlert(
-            appointment.patientId,
-            report.id,
-            patientStatus,
-            {
-              name: `${appointment.Patient.User.firstName} ${appointment.Patient.User.lastName}`,
-              emergencyContactEmail: patientEmail
-            }
-          );
-        } else {
-          console.log('Skipping status alert - invalid or missing patient email');
-        }
-      } catch (alertError) {
-        console.error('Status alert creation failed:', alertError.message);
-        // Don't fail the entire report creation if alert fails
+        await unlockCaregiverEarnings({ appointmentId, caregiverId: caregiver.id });
+      } catch (earningsError) {
+        console.error('Error unlocking caregiver earnings:', earningsError);
       }
     }
 
-    res.status(201).json({ report });
+    const fullReport = await CareSessionReport.findByPk(report.id, {
+      include: getReportIncludes()
+    });
+
+    res.status(isNewReport ? 201 : 200).json({ report: fullReport });
   } catch (error) {
     next(error);
   }
@@ -97,60 +193,42 @@ const createReport = async (req, res, next) => {
 const getReports = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, patientId } = req.query;
-    const offset = (page - 1) * limit;
-    const { USER_ROLES } = require('../utils/constants');
+    const offset = (Number(page) - 1) * Number(limit);
+    const appointmentWhere = {};
 
-    let whereClause = {};
-    let appointmentWhere = {};
-
-    // Filter reports based on user role
     if (req.user.role === USER_ROLES.PATIENT) {
-      const patient = await Patient.findOne({ where: { userId: req.user.id } });
-      if (patient) {
-        appointmentWhere.patientId = patient.id;
-      }
-    } else if (req.user.role === USER_ROLES.CAREGIVER) {
-      const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
-      if (caregiver) {
-        appointmentWhere.caregiverId = caregiver.id;
-      }
+      return res.json({ reports: [], total: 0, page: Number(page), totalPages: 0 });
     }
-    // For admins/physicians, allow viewing all reports (no filter)
 
-    // Optional additional filter by patientId from query
-    if (patientId) {
-      appointmentWhere.patientId = patientId;
+    if (req.user.role === USER_ROLES.CAREGIVER) {
+      const caregiver = await Caregiver.findOne({ where: { userId: req.user.id } });
+      if (!caregiver) {
+        return res.status(403).json({ error: 'Caregiver profile not found' });
+      }
+      appointmentWhere.caregiverId = caregiver.id;
     }
+
+    if (patientId) appointmentWhere.patientId = patientId;
 
     const reports = await CareSessionReport.findAndCountAll({
-      where: whereClause,
       include: [
         {
           model: Appointment,
           where: Object.keys(appointmentWhere).length > 0 ? appointmentWhere : undefined,
           required: true,
-          include: [
-            { model: Patient, include: [{ model: User }] },
-            {
-              model: Caregiver,
-              include: [{
-                model: User,
-                attributes: ['firstName', 'lastName', 'email']
-              }]
-            }
-          ]
+          include: getReportIncludes()[0].include
         }
       ],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit: Number(limit),
+      offset,
       order: [['createdAt', 'DESC']]
     });
 
     res.json({
       reports: reports.rows,
       total: reports.count,
-      page: parseInt(page),
-      totalPages: Math.ceil(reports.count / limit)
+      page: Number(page),
+      totalPages: Math.ceil(reports.count / Number(limit))
     });
   } catch (error) {
     next(error);
@@ -160,25 +238,15 @@ const getReports = async (req, res, next) => {
 const getReportById = async (req, res, next) => {
   try {
     const report = await CareSessionReport.findByPk(req.params.id, {
-      include: [
-        {
-          model: Appointment,
-          include: [
-            { model: Patient, include: [{ model: User }] },
-            { 
-              model: Caregiver, 
-              include: [{ 
-                model: User,
-                attributes: ['firstName', 'lastName', 'email']
-              }]
-            }
-          ]
-        }
-      ]
+      include: getReportIncludes()
     });
 
     if (!report) {
       return res.status(404).json({ error: 'Report not found' });
+    }
+
+    if (req.user.role === USER_ROLES.PATIENT) {
+      return res.status(403).json({ error: 'Patients cannot access care reports' });
     }
 
     res.json({ report });
