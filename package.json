@@ -10,6 +10,7 @@
     "db:init": "node src/scripts/initDb.js",
     "db:migrate-booking": "node src/scripts/runMigration.js",
     "db:migrate-safe": "node -e \"require('./src/scripts/safeMigration')().then(() => process.exit(0)).catch(e => {console.error(e); process.exit(1)})\"",
+    "db:migrate-ledger": "node src/scripts/migrateFinancialLedger.js",
     "populate-locations": "node src/scripts/populateLocations.js",
     "add-location-fields": "node src/scripts/addLocationFields.js",
     "add-cancellation-fields": "node src/scripts/addCancellationFields.js",
