@@ -28,11 +28,78 @@ const digest = (value) => {
     .update(String(value))
     .digest("hex");
 };
-const matches = (stored, plain) => {
+const normalizeDetails = (body = {}) => ({
+  amount: Number(body.amount),
+  recipientType: body.recipientType || "mobile_money",
+  recipientNumber: String(body.recipientNumber || "").replace(/[\s-]/g, ""),
+  operator: String(body.operator || "").toLowerCase(),
+  bankCode: String(body.bankCode || "").trim(),
+  accountName: String(body.accountName || "").trim(),
+});
+const bindingFor = (details) =>
+  JSON.stringify({
+    amount: Number(details.amount).toFixed(2),
+    recipientType: details.recipientType,
+    recipientNumber: details.recipientNumber,
+    operator: details.recipientType === "mobile_money" ? details.operator : "",
+    bankCode: details.recipientType === "bank" ? details.bankCode : "",
+    accountName:
+      details.recipientType === "bank" ? details.accountName.toLowerCase() : "",
+  });
+const validateDetails = (details) => {
+  if (
+    !Number.isFinite(details.amount) ||
+    details.amount <= 0 ||
+    details.amount > 1000000
+  )
+    return "Invalid withdrawal amount (1-1,000,000 MWK)";
+  if (!/^[+0-9]{8,15}$/.test(details.recipientNumber))
+    return "Enter a valid recipient number";
+  const localMobile = details.recipientNumber
+    .replace(/^\+?265/, "")
+    .replace(/^0/, "");
+  if (
+    details.recipientType === "mobile_money" &&
+    !/^\d{9}$/.test(localMobile)
+  )
+    return "Enter a valid Malawi mobile money number";
+  if (
+    details.recipientType === "mobile_money" &&
+    !["airtel", "tnm"].includes(details.operator)
+  )
+    return "Select a valid mobile money network";
+  if (
+    details.recipientType === "bank" &&
+    (!details.bankCode || !details.accountName)
+  )
+    return "Bank code and account name are required";
+  if (!["mobile_money", "bank"].includes(details.recipientType))
+    return "Invalid recipient type";
+  return null;
+};
+const matches = (stored, plain, binding) => {
   const a = Buffer.from(String(stored), "hex");
-  const b = Buffer.from(digest(plain), "hex");
+  const b = Buffer.from(digest(`${plain}:${binding}`), "hex");
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
+const maskRecipient = (value) => {
+  const recipient = String(value || "");
+  if (recipient.length <= 4) return "****";
+  return `${"*".repeat(Math.min(recipient.length - 4, 8))}${recipient.slice(-4)}`;
+};
+const caregiverWithdrawal = (row) => ({
+  id: row.id,
+  requestedAmount: Number(row.requestedAmount).toFixed(2),
+  withdrawalFee: Number(row.withdrawalFee).toFixed(2),
+  netPayout: Number(row.netPayout).toFixed(2),
+  currency: "MWK",
+  recipientType: row.recipientType,
+  recipientNumber: maskRecipient(row.recipientNumber),
+  status: row.status,
+  paymentReference: row.payoutReference,
+  requestedAt: row.requestedAt,
+  processedAt: row.processedAt,
+});
 const caregiverFor = (userId, withUser = false) =>
   Caregiver.findOne({
     where: { userId },
@@ -40,12 +107,14 @@ const caregiverFor = (userId, withUser = false) =>
       ? [{ model: User, attributes: ["firstName", "lastName", "email"] }]
       : undefined,
   });
-const payoutStatus = (value) =>
-  ["success", "successful", "completed"].includes(value)
+const payoutStatus = (value) => {
+  const status = String(value || "").toLowerCase();
+  return ["success", "successful", "completed"].includes(status)
     ? "completed"
-    : ["failed", "cancelled", "rejected"].includes(value)
+    : ["failed", "cancelled", "rejected"].includes(status)
       ? "failed"
       : "processing";
+};
 const calculatedFee = (amount, type) =>
   type === "bank"
     ? Math.round(
@@ -73,7 +142,8 @@ router.post("/webhook", async (req, res, next) => {
       !paymentService.verifyWebhookSignature(req.body, signature)
     )
       return res.status(401).json({ error: "Invalid webhook signature" });
-    const reference = req.body?.reference || req.body?.charge_id;
+    // charge_id is our unique payout reference; PayChangu's `reference` is its own id.
+    const reference = req.body?.charge_id || req.body?.reference;
     if (!reference)
       return res
         .status(400)
@@ -135,6 +205,9 @@ router.post("/webhook", async (req, res, next) => {
 router.use(authenticateToken);
 router.post("/request-token", async (req, res, next) => {
   try {
+    const details = normalizeDetails(req.body);
+    const detailsError = validateDetails(details);
+    if (detailsError) return res.status(400).json({ error: detailsError });
     const caregiver = await caregiverFor(req.user.id, true);
     if (!caregiver)
       return res.status(404).json({ error: "Caregiver profile not found" });
@@ -148,33 +221,62 @@ router.post("/request-token", async (req, res, next) => {
       return res
         .status(429)
         .json({ error: "Too many token requests. Please wait 5 minutes." });
+    const earnings = await CaregiverEarnings.findOne({
+      where: { caregiverId: caregiver.id },
+    });
+    if (!earnings || Number(earnings.walletBalance) < details.amount)
+      return res.status(400).json({ error: "Insufficient balance" });
+    const estimate = calculatedFee(details.amount, details.recipientType);
+    const net = Math.round(details.amount - estimate);
+    const fee = Math.round((details.amount - net) * 100) / 100;
+    if (net <= 0)
+      return res
+        .status(400)
+        .json({ error: "Withdrawal amount too small after fees" });
     const plain = crypto.randomInt(100000, 1000000).toString();
-    await sequelize.transaction(async (transaction) => {
+    const tokenRecord = await sequelize.transaction(async (transaction) => {
       await WithdrawalToken.update(
         { used: true },
         { where: { caregiverId: caregiver.id, used: false }, transaction },
       );
-      await WithdrawalToken.create(
+      return WithdrawalToken.create(
         {
           caregiverId: caregiver.id,
-          token: digest(plain),
+          token: digest(`${plain}:${bindingFor(details)}`),
           expiresAt: new Date(Date.now() + 180000),
         },
         { transaction },
       );
     });
-    await sendWithdrawalTokenEmail(
-      caregiver.User.email,
-      `${caregiver.User.firstName} ${caregiver.User.lastName}`,
-      plain,
-    );
-    return res.json({ message: "Withdrawal token sent to your email" });
+    try {
+      await sendWithdrawalTokenEmail(
+        caregiver.User.email,
+        `${caregiver.User.firstName} ${caregiver.User.lastName}`,
+        plain,
+      );
+    } catch (emailError) {
+      await tokenRecord.update({ used: true });
+      throw emailError;
+    }
+    return res.json({
+      message: "Withdrawal token sent to your email",
+      requestedAmount: details.amount.toFixed(2),
+      withdrawalFee: fee.toFixed(2),
+      netPayout: net.toFixed(2),
+      currency: "MWK",
+    });
   } catch (error) {
     return next(error);
   }
 });
 
-const validateToken = async (caregiverId, plain, consume, transaction) => {
+const validateToken = async (
+  caregiverId,
+  plain,
+  binding,
+  consume,
+  transaction,
+) => {
   const token = await WithdrawalToken.findOne({
     where: { caregiverId, used: false, expiresAt: { [Op.gt]: new Date() } },
     order: [["created_at", "DESC"]],
@@ -182,7 +284,7 @@ const validateToken = async (caregiverId, plain, consume, transaction) => {
     lock: transaction.LOCK.UPDATE,
   });
   if (!token || token.attemptCount >= 5) return false;
-  if (!matches(token.token, plain)) {
+  if (!matches(token.token, plain, binding)) {
     const attempts = token.attemptCount + 1;
     await token.update(
       { attemptCount: attempts, used: attempts >= 5 },
@@ -195,18 +297,25 @@ const validateToken = async (caregiverId, plain, consume, transaction) => {
 };
 router.post("/verify-token", async (req, res, next) => {
   try {
-    const amount = Number(req.body.amount);
+    const details = normalizeDetails(req.body);
+    const amount = details.amount;
+    const detailsError = validateDetails(details);
     if (
       !/^\d{6}$/.test(String(req.body.token || "")) ||
-      !Number.isFinite(amount) ||
-      amount <= 0
+      detailsError
     )
-      return res.status(400).json({ error: "Invalid token or amount" });
+      return res.status(400).json({ error: detailsError || "Invalid token" });
     const caregiver = await caregiverFor(req.user.id);
     if (!caregiver)
       return res.status(404).json({ error: "Caregiver profile not found" });
     const valid = await sequelize.transaction((t) =>
-      validateToken(caregiver.id, req.body.token, false, t),
+      validateToken(
+        caregiver.id,
+        req.body.token,
+        bindingFor(details),
+        false,
+        t,
+      ),
     );
     if (!valid)
       return res.status(400).json({ error: "Invalid or expired token" });
@@ -222,7 +331,7 @@ router.post("/verify-token", async (req, res, next) => {
         });
     const estimate = calculatedFee(
       amount,
-      req.body.recipientType || "mobile_money",
+      details.recipientType,
     );
     const net = Math.round(amount - estimate);
     const fee = Math.round((amount - net) * 100) / 100;
@@ -259,6 +368,22 @@ router.get("/balance", async (req, res, next) => {
     return next(error);
   }
 });
+router.get("/banks", async (req, res, next) => {
+  try {
+    const caregiver = await caregiverFor(req.user.id);
+    if (!caregiver)
+      return res.status(404).json({ error: "Caregiver profile not found" });
+    const banks = await paymentService.getSupportedPayoutBanks();
+    return res.json({ banks });
+  } catch (error) {
+    logger.error("Unable to load PayChangu payout banks", {
+      error: error.message,
+    });
+    return res
+      .status(502)
+      .json({ error: "Bank withdrawals are temporarily unavailable" });
+  }
+});
 router.get("/history", async (req, res, next) => {
   try {
     const caregiver = await caregiverFor(req.user.id);
@@ -273,7 +398,7 @@ router.get("/history", async (req, res, next) => {
       offset: (page - 1) * limit,
     });
     return res.json({
-      withdrawals: result.rows,
+      withdrawals: result.rows.map(caregiverWithdrawal),
       pagination: {
         currentPage: page,
         pageSize: limit,
@@ -288,20 +413,13 @@ router.get("/history", async (req, res, next) => {
 
 router.post("/request", async (req, res, next) => {
   try {
-    const amount = Number(req.body.amount),
-      recipientType = req.body.recipientType || "mobile_money",
-      recipientNumber = req.body.recipientNumber;
-    if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000)
+    const details = normalizeDetails(req.body);
+    const { amount, recipientType, recipientNumber } = details;
+    const detailsError = validateDetails(details);
+    if (detailsError || !/^\d{6}$/.test(String(req.body.token || "")))
       return res
         .status(400)
-        .json({ error: "Invalid withdrawal amount (1-1,000,000 MWK)" });
-    if (
-      !["mobile_money", "bank"].includes(recipientType) ||
-      !recipientNumber ||
-      !/^[-+0-9\s]{8,30}$/.test(recipientNumber) ||
-      !/^\d{6}$/.test(String(req.body.token || ""))
-    )
-      return res.status(400).json({ error: "Invalid withdrawal details" });
+        .json({ error: detailsError || "Invalid withdrawal token" });
     const caregiver = await caregiverFor(req.user.id, true);
     if (!caregiver)
       return res.status(404).json({ error: "Caregiver profile not found" });
@@ -315,7 +433,13 @@ router.post("/request", async (req, res, next) => {
     const reference = `WD${Date.now()}${caregiver.id}${crypto.randomInt(1000, 10000)}`;
     const withdrawal = await sequelize.transaction(async (transaction) => {
       if (
-        !(await validateToken(caregiver.id, req.body.token, true, transaction))
+        !(await validateToken(
+          caregiver.id,
+          req.body.token,
+          bindingFor(details),
+          true,
+          transaction,
+        ))
       )
         return null;
       const row = await WithdrawalRequest.create(
@@ -348,18 +472,14 @@ router.post("/request", async (req, res, next) => {
         .json({ error: "Invalid or expired withdrawal token" });
     let result;
     try {
-      const operator =
-        recipientNumber.includes("088") || recipientNumber.includes("077")
-          ? "tnm"
-          : "airtel";
       result = await paymentService.processWithdrawal({
         amount: netPayout,
         recipientType,
         recipientNumber,
         reference,
-        operator,
-        bankCode: req.body.bankCode,
-        accountName: req.body.accountName,
+        operator: details.operator,
+        bankCode: details.bankCode,
+        accountName: details.accountName,
       });
     } catch (error) {
       if (error.response && error.response.status < 500) {
@@ -395,14 +515,16 @@ router.post("/request", async (req, res, next) => {
         .json({
           message: "Withdrawal is awaiting confirmation",
           status: "processing",
+          requestedAmount: amount.toFixed(2),
+          withdrawalFee: fee.toFixed(2),
+          netPayout: netPayout.toFixed(2),
           paymentReference: reference,
+          recipientNumber: maskRecipient(recipientNumber),
           currency: "MWK",
         });
     }
-    const providerStatus =
-        result.data?.transaction?.status ||
-        result.data?.status ||
-        result.status,
+    const providerTransaction = result.data?.transaction || result.data || {};
+    const providerStatus = providerTransaction.status,
       finalStatus = payoutStatus(providerStatus);
     await sequelize.transaction(async (t) => {
       await withdrawal.update(
@@ -410,9 +532,9 @@ router.post("/request", async (req, res, next) => {
           status: finalStatus,
           processedAt: finalStatus === "processing" ? null : new Date(),
           paychanguResponse: {
-            chargeId: result.data?.charge_id,
-            refId: result.data?.ref_id,
-            transId: result.data?.trans_id,
+            chargeId: providerTransaction.charge_id,
+            refId: providerTransaction.ref_id,
+            transId: providerTransaction.trans_id,
             status: providerStatus,
           },
         },
@@ -429,8 +551,8 @@ router.post("/request", async (req, res, next) => {
       if (finalStatus === "completed") await ledger.completeWithdrawal(args, t);
       if (finalStatus === "failed") await ledger.reverseWithdrawal(args, t);
     });
-    if (finalStatus === "completed")
-      await sendWithdrawalSuccessEmail(caregiver.User.email, {
+    if (finalStatus === "completed") {
+      sendWithdrawalSuccessEmail(caregiver.User.email, {
         caregiverName: `${caregiver.User.firstName} ${caregiver.User.lastName}`,
         requestedAmount: amount.toFixed(2),
         withdrawalFee: fee.toFixed(2),
@@ -439,7 +561,13 @@ router.post("/request", async (req, res, next) => {
         paymentReference: reference,
         recipientType,
         recipientNumber,
-      });
+      }).catch((emailError) =>
+        logger.error("Withdrawal success email failed", {
+          withdrawalId: withdrawal.id,
+          error: emailError.message,
+        }),
+      );
+    }
     return res
       .status(201)
       .json({
@@ -454,7 +582,7 @@ router.post("/request", async (req, res, next) => {
         netPayout: netPayout.toFixed(2),
         currency: "MWK",
         paymentReference: reference,
-        recipientNumber,
+        recipientNumber: maskRecipient(recipientNumber),
         status: finalStatus,
       });
   } catch (error) {

@@ -876,8 +876,8 @@ const processWithdrawal = async (withdrawalData) => {
       payoutData = {
         payout_method: "bank_transfer",
         bank_uuid: bankCode, // bankCode should be the bank UUID from PayChangu
-        account_name: accountName,
-        account_number: recipientNumber,
+        bank_account_name: accountName,
+        bank_account_number: recipientNumber,
         amount: roundedAmount,
         charge_id: reference,
       };
@@ -908,6 +908,7 @@ const processWithdrawal = async (withdrawalData) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${paymentConfig.paychangu.secretKey}`,
         },
+        timeout: 30000,
       },
     );
 
@@ -933,6 +934,29 @@ const processWithdrawal = async (withdrawalData) => {
   }
 };
 
+const getSupportedPayoutBanks = async () => {
+  const response = await axios.get(
+    `${paymentConfig.paychangu.apiUrl}/direct-charge/payouts/supported-banks`,
+    {
+      params: { currency: "MWK" },
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${paymentConfig.paychangu.secretKey}`,
+      },
+      timeout: 10000,
+    },
+  );
+  const banks = Array.isArray(response.data?.data) ? response.data.data : [];
+  return banks
+    .filter(
+      (bank) =>
+        bank?.uuid &&
+        bank?.name &&
+        !/airtel money|tnm mpamba/i.test(bank.name),
+    )
+    .map((bank) => ({ uuid: bank.uuid, name: bank.name }));
+};
+
 module.exports = {
   initiateBookingPayment,
   verifyPayment,
@@ -942,4 +966,5 @@ module.exports = {
   getAppointmentPayments,
   updateCaregiverEarnings,
   processWithdrawal,
+  getSupportedPayoutBanks,
 };
