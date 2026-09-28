@@ -39,6 +39,30 @@ const Caregiver = sequelize.define('Caregiver', {
     values: Object.values(VERIFICATION_STATUS),
     defaultValue: VERIFICATION_STATUS.PENDING
   },
+  credentialVerificationStatus: {
+    type: DataTypes.STRING(32),
+    allowNull: false,
+    defaultValue: 'not_started',
+    field: 'credential_verification_status',
+    validate: {
+      isIn: [['not_started', 'in_review', 'verified', 'could_not_verify']]
+    }
+  },
+  credentialVerifiedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'credential_verified_at'
+  },
+  credentialVerifiedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'credential_verified_by'
+  },
+  credentialVerificationNotes: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'credential_verification_notes'
+  },
   hourlyRate: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false

@@ -41,7 +41,7 @@ const verifyCaregiver = async (req, res, next) => {
     }
 
     // Update caregiver verification status
-    await user.Caregiver.update({ verificationStatus: 'APPROVED' });
+    await user.Caregiver.update({ verificationStatus: 'verified' });
     
     // Create notification for caregiver verification
     try {
@@ -85,7 +85,7 @@ const revokeCaregiverVerification = async (req, res, next) => {
       return res.status(400).json({ error: 'User is not a caregiver' });
     }
 
-    await user.Caregiver.update({ verificationStatus: 'PENDING' });
+    await user.Caregiver.update({ verificationStatus: 'pending' });
 
     try {
       await NotificationHelper.createCaregiverVerificationNotifications(
@@ -128,7 +128,7 @@ const rejectCaregiver = async (req, res, next) => {
     }
 
     // Update caregiver verification status
-    await user.Caregiver.update({ verificationStatus: 'REJECTED' });
+    await user.Caregiver.update({ verificationStatus: 'rejected' });
     
     // Create notification for caregiver rejection
     try {
@@ -739,11 +739,27 @@ const updateUser = async (req, res, next) => {
 
     // Update caregiver data if provided
     if (caregiverData && user.Caregiver) {
+      const verificationStatuses = ['pending', 'verified', 'rejected'];
+      const credentialStatuses = ['not_started', 'in_review', 'verified', 'could_not_verify'];
+      const verificationStatus = caregiverData.verificationStatus || user.Caregiver.verificationStatus;
+      const credentialVerificationStatus = caregiverData.credentialVerificationStatus || user.Caregiver.credentialVerificationStatus || 'not_started';
+      if (!verificationStatuses.includes(verificationStatus)) {
+        return res.status(400).json({ error: 'Invalid caregiver verification status' });
+      }
+      if (!credentialStatuses.includes(credentialVerificationStatus)) {
+        return res.status(400).json({ error: 'Invalid credential verification status' });
+      }
+      const credentialWasVerified = credentialVerificationStatus === 'verified';
       await user.Caregiver.update({
         specialtyId: caregiverData.specialtyId,
         yearsOfExperience: caregiverData.yearsOfExperience,
         bio: caregiverData.bio,
-        serviceLocations: caregiverData.serviceLocations
+        serviceLocations: caregiverData.serviceLocations,
+        verificationStatus,
+        credentialVerificationStatus,
+        credentialVerificationNotes: caregiverData.credentialVerificationNotes || null,
+        credentialVerifiedAt: credentialWasVerified ? (user.Caregiver.credentialVerifiedAt || new Date()) : null,
+        credentialVerifiedBy: credentialWasVerified ? (user.Caregiver.credentialVerifiedBy || req.user.id) : null
       });
     }
 
