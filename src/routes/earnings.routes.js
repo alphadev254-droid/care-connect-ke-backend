@@ -419,6 +419,7 @@ router.get("/caregiver", async (req, res, next) => {
         [Op.gte]: dateStart,
         [Op.lte]: dateEnd,
       },
+      paymentType: "session_fee",
     };
 
     const appointmentWhere = { caregiverId: caregiver.id };
@@ -454,14 +455,41 @@ router.get("/caregiver", async (req, res, next) => {
     // Get transactions for caregiver's appointments
     const { count, rows: transactions } =
       await PaymentTransaction.findAndCountAll({
+        attributes: [
+          "id",
+          "appointmentId",
+          "baseFee",
+          "platformCommissionRate",
+          "platformCommissionAmount",
+          "caregiverEarnings",
+          "paymentType",
+          "currency",
+          "status",
+          "createdAt",
+        ],
         include: [
           {
             model: Appointment,
+            attributes: [
+              "id",
+              "patientId",
+              "scheduledDate",
+              "duration",
+              "sessionType",
+              "status",
+            ],
             where: appointmentWhere,
             required: true,
             include: [
               {
                 model: Patient,
+                attributes: [
+                  "id",
+                  "region",
+                  "district",
+                  "traditionalAuthority",
+                  "village",
+                ],
                 where:
                   Object.keys(patientWhere).length > 0
                     ? patientWhere
@@ -472,7 +500,7 @@ router.get("/caregiver", async (req, res, next) => {
                 include: [
                   {
                     model: User,
-                    attributes: ["firstName", "lastName", "email", "phone"],
+                    attributes: ["firstName", "lastName"],
                     where:
                       Object.keys(patientUserWhere).length > 0
                         ? patientUserWhere
