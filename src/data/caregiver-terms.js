@@ -99,15 +99,9 @@ The platform acts as a facilitator and does not replace professional medical res
 
 Access may be revoked for breaches of these terms without prior notice.
 
-14. Account Deletion
+14. Account Closure
 
-You may delete your account at any time through your profile settings. Account deletion will:
-• Remove your personal information from active systems
-• Cancel all future appointments
-• Retain professional records as required by law
-• Process within 30 days of request
-
-Note: Some data may be retained for legal, professional, and regulatory compliance.
+Caregivers cannot delete their own accounts. Contact CareConnect support to request account deactivation or closure. Requests are reviewed to protect active appointments, financial records, patient-care records, and legal or regulatory obligations.
 
 15. Dispute Resolution
 

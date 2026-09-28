@@ -106,25 +106,9 @@ Patient concerns will be addressed through:
 
 Access may be revoked for violations of these terms or inappropriate conduct.
 
-14. Account Deletion
+14. Account Closure
 
-You may delete your account at any time through your profile settings. Account deletion will:
-• Remove your personal information from active systems
-• Cancel all future appointments
-• Retain medical records as required by law
-• Process within 30 days of request
-
-Note: Some data may be retained for legal, medical, and regulatory compliance.
-
-14. Account Deletion
-
-You may delete your account at any time through your profile settings. Account deletion will:
-• Remove your personal information from active systems
-• Cancel all future appointments
-• Retain medical records as required by law
-• Process within 30 days of request
-
-Note: Some data may be retained for legal, medical, and regulatory compliance.
+Patients cannot delete their own accounts. Contact CareConnect support to request account deactivation or closure. Requests are reviewed to protect active appointments, medical records, financial records, and legal or regulatory obligations.
 
 15. Amendments
 
