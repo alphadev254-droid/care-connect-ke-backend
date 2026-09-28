@@ -12,6 +12,7 @@ const {
   LedgerAccount,
   LedgerEntry,
   LedgerTransaction,
+  CareSessionReport,
 } = require("../models");
 const { Op } = require("sequelize");
 
@@ -483,6 +484,11 @@ router.get("/caregiver", async (req, res, next) => {
               {
                 model: Specialty,
                 attributes: ["name"],
+              },
+              {
+                model: CareSessionReport,
+                attributes: ["id"],
+                required: false,
               },
             ],
           },
